@@ -92,6 +92,7 @@ pnpm install
 pnpm dev      # site at http://localhost:5280
 pnpm test     # engine tests: determinism, continuity, every action of every character
 pnpm build    # site to dist/, plus dist/livelings.js and dist/livelings-skill.zip
+pnpm run deploy   # build, then publish dist/ to livelings.makerjackie.com (Cloudflare Workers)
 ```
 
 `src/engine` is the engine, `src/characters` the family, `src/site` the

@@ -17,8 +17,8 @@ canvas.style.height = `${H}px`
 const g = canvas.getContext('2d')
 
 const C = L.CHARACTERS
-const FAMILY = [C.inky, C.doudou, C.dice, C.ghost, C.duck, C.blocks, C.moon]
-const TONES = { inky: '#fbefc2', doudou: '#d9ecfb', dice: '#e9e4f7', ghost: '#dfe3ec', duck: '#dcf1fb', blocks: '#fbe9d8', moon: '#e6e4f5', toast: '#fde7c8' }
+const FAMILY = [C.cloud, C.inky, C.dice, C.ghost, C.duck, C.blocks, C.moon]
+const TONES = { cloud: '#d9ecfb', inky: '#fbefc2', dice: '#e9e4f7', ghost: '#dfe3ec', duck: '#dcf1fb', blocks: '#fbe9d8', moon: '#e6e4f5', toast: '#fde7c8' }
 const INK = '#171614'
 const MUTED = '#6b665c'
 const ZH = '"PingFang SC", "Hiragino Sans GB", sans-serif'
@@ -144,7 +144,7 @@ const POSTERS = {
     const big = tall ? 108 * u : 96 * u
     const bottom = headline(COPY.cover[lang], tall ? 250 * u : 190 * u, big)
     const R = tall ? 92 * u : 70 * u
-    const cast = FAMILY.map((def, i) => pose(def, ['hello', 'hello', 'happy', 'hello', 'done', 'stack', 'twinkle'][i], [0.7, 0.45, 0.6, 0.6, 0.5, 1.2, 0.9][i]))
+    const cast = FAMILY.map((def, i) => pose(def, ['hello', 'hello', 'happy', 'hello', 'done', 'stack', 'twinkle'][i], [0.45, 0.7, 0.6, 0.6, 0.5, 1.2, 0.9][i]))
     if (tall) {
       const rows = [cast.slice(0, 4), cast.slice(4)]
       rows.forEach((row, r) => row.forEach((a, i) => draw(a, W / 2 + (i - (row.length - 1) / 2) * 225 * u, bottom + (330 + r * 340) * u, R * 0.95)))
@@ -191,13 +191,13 @@ const POSTERS = {
     paper()
     const bottom = tall ? headline(COPY.tricks[lang], 190 * u, 92 * u) : wideHead('tricks')
     const cells = [
+      [C.cloud, 'thunder', 0.6],
+      [C.inky, 'stamp', 0.95],
       [C.dice, 'lucky', 1.7],
       [C.ghost, 'boo', 0.55],
       [C.duck, 'flip', 0.55],
       [C.blocks, 'topple', 0.9],
       [C.moon, 'wax', 1.6],
-      [C.doudou, 'thunder', 0.6],
-      [C.inky, 'stamp', 0.95],
       [toast, 'pop', 0.35]
     ]
     const cols = tall ? 2 : 4
@@ -232,7 +232,7 @@ const POSTERS = {
     const x = tall ? 60 * u : SIDE.x
     const w = tall ? W - 120 * u : SIDE.w
     const y = tall ? bottom + 90 * u : H / 2 - 290 * u
-    const lines = ['<script type="module"', '  src="https://mascots', '  .makerjackie.com/livelings.js">', '</script>', '', '<live-ling', '  character="ghost"', '  state="thinking">', '</live-ling>']
+    const lines = ['<script type="module"', '  src="https://livelings', '  .makerjackie.com/livelings.js">', '</script>', '', '<live-ling', '  character="cloud"', '  state="thinking">', '</live-ling>']
     const lh = 50 * u
     const h = lines.length * lh + 110 * u
     g.fillStyle = INK
@@ -254,7 +254,7 @@ const POSTERS = {
         cx += g.measureText(part).width
       }
     })
-    const a = pose(C.ghost, 'thinking', 1.2)
+    const a = pose(C.cloud, 'thinking', 1.2)
     draw(a, x + w - 170 * u, y + h - 210 * u, 110 * u)
     text(lang === 'zh' ? '没有依赖 · 约 40 KB' : 'No dependencies · ~40 KB', tall ? W / 2 : SIDE.cx, tall ? y + h + 80 * u : bottom + 90 * u, { size: 34 * u, weight: 600, color: MUTED })
     footer()

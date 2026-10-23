@@ -22,7 +22,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
-import { shots as makeShots } from './shots.mjs'
+import { narration, plan } from './shots.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
@@ -33,11 +33,13 @@ const opt = (n, d) => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d
 }
 const lang = opt('lang', 'zh')
+const edit = opt('edit', 'short')
 const fps = Number(opt('fps', 60))
-const beats = JSON.parse(readFileSync(resolve(root, 'beats.json'), 'utf8')).beats
-const all = makeShots({ beats, lang })
+const beats = JSON.parse(readFileSync(resolve(root, `edits/${edit}-beats.json`), 'utf8')).beats
+const vo = edit === 'long' ? narration(JSON.parse(readFileSync(resolve(root, `public/voice/vo-${lang}.json`), 'utf8'))) : null
+const all = plan({ edit, lang, beats, vo }).shots.map((s) => ({ ...s, duration: s.end - s.at + 0.4 }))
 if (flag('list')) {
-  for (const s of all) console.log(`${s.id.padEnd(12)} ${s.duration.toFixed(2).padStart(6)}s  ${s.url}`)
+  for (const s of all) console.log(`${s.id.padEnd(12)} ${s.at.toFixed(2).padStart(6)} → ${s.end.toFixed(2).padStart(6)}  ${s.url.slice(0, 90)}`)
   process.exit(0)
 }
 const only = opt('only')
@@ -46,7 +48,7 @@ function fail(m) {
   console.error(m)
   process.exit(1)
 }
-const outDir = resolve(root, 'footage', lang)
+const outDir = resolve(root, 'footage', `${edit}-${lang}`)
 mkdirSync(outDir, { recursive: true })
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -236,7 +238,8 @@ function encoder(out, W, H) {
 
 async function record(s) {
   const [W, H] = s.viewport ?? [1440, 810]
-  const scale = 1920 / W
+  const [OW, OH] = s.out ?? [1920, 1080]
+  const scale = OW / W
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: scale, locale: lang === 'zh' ? 'zh-CN' : 'en-US', reducedMotion: 'no-preference' })
   await ctx.addInitScript((l) => {
     try {
@@ -260,7 +263,7 @@ async function record(s) {
   await page.goto(s.url, { waitUntil: 'load' })
   await page.evaluate(() => document.fonts.ready)
   // scene pages say when they are ready (fonts, beats); poll from here, the page's own timers are frozen
-  if (s.url.includes(':5290')) for (let k = 0; k < 200 && (await page.title()) !== 'ready'; k++) await sleep(50)
+  if (s.kind === 'scene') for (let k = 0; k < 200 && (await page.title()) !== 'ready'; k++) await sleep(50)
   if (s.css) await page.addStyleTag({ content: s.css })
   for (const st of s.setup ?? []) {
     if (st.eval) await page.evaluate(st.eval)
@@ -276,7 +279,7 @@ async function record(s) {
   }
   await sync(page)
   const out = resolve(outDir, `${s.id}.mp4`)
-  const enc = encoder(out, 1920, 1080)
+  const enc = encoder(out, OW, OH)
   const drive = driver(page, s.actions ?? [], W, H)
   const total = Math.round(s.duration * fps)
   let sim = 0

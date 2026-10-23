@@ -10,5 +10,5 @@
     "allowJs": true,
     "noEmit": true
   },
-  "include": ["src", "cues.mjs"]
+  "include": ["src", "cues.mjs", "tools/shots.d.mts"]
 }

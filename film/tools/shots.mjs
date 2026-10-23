@@ -1,135 +1,235 @@
 /**
- * The shot list. Every shot starts at a bar of the soundtrack; action times are
- * seconds from the start of the shot, worked out from the beat map so clicks
- * and transitions land on the beat. Pages: the Mascots dev server (:5280) and
- * the scene page (tools/serve.mjs, :5290). Viewport 1440×810, captured at 1080p.
+ * The shot plan for both films, shared by the capture tool and the edit.
+ *
+ *   short: about 42 s, no narration, cut to the music (edits/short-beats.json)
+ *   long:  about 76 s, narrated (public/voice/vo-zh.json), music underneath
+ *
+ * plan() is pure: callers pass the beat map and the narration timestamps.
+ * Every shot has a film start `at` and end `end`; scene parameters and pointer
+ * actions are in seconds from the start of the shot. `marks` are film times
+ * the edit uses for sounds.
  */
-export const SITE = 'http://localhost:5280'
+export const SITE = 'https://livelings.makerjackie.com'
+export const LOCAL = 'http://localhost:5280'
 export const SCENES = 'http://localhost:5290'
 
-/** bar k starts on beat 1 + 4k (see beats.json) */
-export const timing = (beats) => {
-  const beat = (i) => beats[i]
-  const bar = (k, b = 0) => beats[1 + 4 * k + b]
-  return { beat, bar }
-}
+/** The browser window the site is shown in: content area of the edit, in output pixels. */
+export const WINDOW = { x: 96, y: 80, w: 1728, h: 972, bar: 52 }
 
-/** Where each shot sits in the film: first bar, last bar (exclusive). */
-export const PLACES = {
-  hook: [-0.25, 2], // starts at 0 s (before bar 0)
-  states: [2, 6],
-  title: [6, 8],
-  home: [8, 16],
-  play: [16, 20],
-  tricks: [20, 24],
-  showcase: [24, 28],
-  code: [28, 30],
-  pause: [30, 31.75],
-  toasty: [31.75, 33],
-  studio: [33, 35],
-  card: [35, 37],
-  end: [37, 41]
-}
-
-export function shots({ beats, lang }) {
-  const { bar } = timing(beats)
-  const zh = lang === 'zh'
-  const start = (id) => (id === 'hook' ? 0 : bar(PLACES[id][0]))
-  // length of a shot: to the end of its last bar, plus a little handle for the edit
-  const length = (id, handle = 0.4) => {
-    const [, b] = PLACES[id]
-    const end = b >= 41 ? beats.at(-1) + 2 : bar(b)
-    return end - start(id) + handle
+/** Narration words with start times, from the TTS JSON. */
+export function narration(json) {
+  let text = ''
+  const times = []
+  for (const s of json.sentences) for (const w of s.words) for (const ch of w.word) {
+    text += ch
+    times.push(w.startTime)
   }
-  // seconds into the shot at which a bar (and beat) of the film happens
-  const at = (id, k, b = 0) => bar(k, b) - start(id)
-  const scene = (id, extra = '') => ({
-    id,
-    url: `${SCENES}/?scene=${id}&lang=${lang}&t0=${start(id).toFixed(4)}${extra}`,
-    duration: length(id)
-  })
+  /** start of the first `phrase`, or the first one after `after` */
+  const at = (phrase, after) => {
+    const j = text.indexOf(phrase, after ? text.indexOf(after) : 0)
+    if (j < 0) throw new Error(`narration has no "${phrase}"`)
+    return times[j]
+  }
+  return { text, times, at, sentences: json.sentences }
+}
 
+const scene = (id, lang, at, end, p, extra = {}) => ({
+  id,
+  kind: 'scene',
+  at,
+  end,
+  url: `${SCENES}/?scene=${id.replace(/-.*/, '')}&lang=${lang}&p=${encodeURIComponent(JSON.stringify(p))}`,
+  p,
+  ...extra
+})
+
+const site = (id, url, at, end, extra) => ({ id, kind: 'site', at, end, url, out: [WINDOW.w, WINDOW.h], ...extra })
+
+const card = (name, at2 = [0.5, 0.36]) => ({ toSel: '.card', text: name, at2 })
+const strip = (label) => ({ toSel: '.film .strip-hit', text: label })
+
+export function plan({ edit, lang, beats, vo }) {
+  const zh = lang === 'zh'
+  const cloud = zh ? '小云' : 'Puff'
   const ghost = zh ? '飘飘' : 'Boo'
-  const pips = zh ? '点点' : 'Pips'
-  const inky = zh ? '墨团' : 'Inky'
-  const card = (name, at2 = [0.5, 0.36]) => ({ toSel: '.card', text: name, at2 })
+  const marks = {}
+  const shots = []
 
-  return [
-    scene('hook'),
-    scene('states'),
-    scene('title'),
-    {
-      // the index stamps itself in, everyone watches the cursor, a drop of ink,
-      // then a card opens and splits into sixteen
-      id: 'home',
-      url: `${SITE}/`,
-      duration: length('home'),
+  if (edit === 'short') {
+    const bar = (k, b = 0) => beats[4 * k + b] ?? beats.at(-1) + (4 * k + b - beats.length + 1) * (beats[1] - beats[0])
+    const END = bar(20) + 0.5
+    // home → a card splits into sixteen → zoom in, pick moves
+    const home = site('home', `${SITE}/`, 0, bar(7), {
       actions: [
-        { at: 0.35, type: 'move', from: [1400, 790], to: [1090, 600], dur: 0.9, ease: 'out' },
-        { at: at('home', 8, 3), type: 'move', ...card(inky), dur: 1.0 },
-        { at: at('home', 9, 1), type: 'move', ...card(pips), dur: 0.9 },
-        { at: at('home', 10, 0), type: 'move', to: [650, 104], dur: 0.8 },
-        { at: at('home', 10, 2), type: 'click' },
-        { at: at('home', 11, 0), type: 'scroll', from: 0, to: 330, dur: 1.4 },
-        { at: at('home', 11, 1), type: 'move', to: [1150, 470], dur: 1.0, arc: 0.06 },
-        { at: at('home', 11, 3), type: 'scroll', from: 330, to: 120, dur: 0.8 },
-        { at: at('home', 11, 3), type: 'move', ...card(ghost), dur: 0.55 },
-        // the card waits 0.19 s before it leaves, so the split starts on bar 12
-        { at: at('home', 12) - 0.19, type: 'click' },
-        { at: at('home', 13, 0), type: 'move', toSel: '.grid-canvas', at2: [0.62, 0.55], dur: 1.0 },
-        { at: at('home', 13, 2), type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.9 },
-        { at: at('home', 14, 0), type: 'click' },
-        { at: at('home', 14, 3), type: 'move', toSel: '.film .strip-hit', text: zh ? '穿墙' : 'Through the wall', dur: 0.7 },
-        { at: at('home', 15, 0), type: 'click' },
-        { at: at('home', 15, 2), type: 'move', toSel: '.grid-canvas', at2: [0.72, 0.42], dur: 0.8 }
+        { at: 0.25, type: 'move', from: [1400, 790], to: [1050, 560], dur: 0.9, ease: 'out' },
+        { at: bar(1), type: 'move', ...card(cloud), dur: 0.7 },
+        { at: bar(1, 2), type: 'move', ...card(ghost), dur: 1.0, arc: 0.05 },
+        { at: bar(2), type: 'move', to: [650, 104], dur: 0.6 },
+        { at: bar(2, 2), type: 'click' },
+        { at: bar(3), type: 'move', ...card(cloud), dur: 0.9 },
+        { at: bar(4) - 0.19, type: 'click' },
+        { at: bar(5), type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.45 },
+        { at: bar(5, 1), type: 'click' },
+        { at: bar(5, 3) - 0.1, type: 'move', ...strip(zh ? '打雷' : 'Thunder'), dur: 0.35 },
+        { at: bar(6), type: 'click' },
+        { at: bar(6, 1), type: 'move', ...strip(zh ? '晒太阳' : 'Sunbathe'), dur: 0.35 },
+        { at: bar(6, 2), type: 'click' },
+        { at: bar(6, 3), type: 'move', toSel: '.grid-canvas', at2: [0.8, 0.3], dur: 0.6 }
       ]
-    },
-    {
-      // Inky up close: poke, stretch, tickle, three taps
-      id: 'play',
-      url: `${SITE}/c/inky`,
-      duration: length('play'),
-      // zoom into the first tile and let Inky simply stand there
-      setup: [{ run: 1500 }, { click: { toSel: '.grid-canvas', at2: [0.13, 0.14] } }, { run: 900 }, { click: { toSel: '.film .strip-hit', text: zh ? '待机' : 'Idle' } }, { run: 900 }],
-      actions: [
-        { at: 0.05, type: 'move', from: [1300, 700], toSel: '.grid-canvas', at2: [0.5, 0.42], dur: 0.6, ease: 'out' },
-        { at: at('play', 16, 1) - 0.02, type: 'click' },
-        { at: at('play', 17, 0), type: 'drag', toSel: '.grid-canvas', at2: [0.78, 0.36], dur: 0.9 },
-        { at: at('play', 17, 3), type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.45], dur: 0.4 },
-        ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({ at: at('play', 18, 0) + k * 0.14, type: 'move', toSel: '.grid-canvas', at2: [k % 2 ? 0.54 : 0.46, 0.46], dur: 0.13, ease: 'linear', arc: 0 })),
-        { at: at('play', 19, 0), type: 'click' },
-        { at: at('play', 19, 1), type: 'click' },
-        { at: at('play', 19, 2), type: 'click' }
-      ]
-    },
-    scene('tricks'),
-    {
-      id: 'showcase',
-      url: `${SITE}/`,
-      duration: length('showcase'),
-      setup: [{ eval: `window.scrollTo(0, document.getElementById('in-products').offsetTop - 70)` }, { run: 300 }],
-      actions: [
-        { at: 0.1, type: 'move', from: [1380, 760], toSel: '.show-mini .mp-row', at2: [0.5, 0.5], dur: 1.2 },
-        { at: at('showcase', 25, 0) - 0.02, type: 'click' },
-        { at: at('showcase', 26, 0), type: 'move', toSel: '.show-web .web-assistant', at2: [0.6, 0.6], dur: 1.4 }
-      ]
-    },
-    scene('code'),
-    scene('pause'),
-    scene('toasty'),
-    {
-      id: 'studio',
-      url: `${SITE}/skill/livelings/workspace/studio.html?char=./characters/toast.js`,
-      duration: length('studio'),
-      setup: [{ run: 600 }],
-      actions: [{ at: 0.2, type: 'move', from: [1300, 760], to: [760, 470], dur: 1.6 }]
-    },
-    {
-      id: 'card',
-      url: `${SITE}/skill/livelings/workspace/card.html?spec=${encodeURIComponent(`${SCENES}/cards/inky-${lang}.json`)}`,
-      duration: length('card'),
-      css: '#bar { display: none !important; } body { background: #f7f3ea !important; } canvas { width: 100vw !important; height: 100vh !important; box-shadow: none !important; }'
-    },
-    scene('end')
+    })
+    shots.push(home)
+    marks.inkDrop = bar(2, 2)
+    marks.cardClick = bar(4) - 0.19
+    marks.split = bar(4)
+    marks.zoom = bar(5, 1)
+    marks.picks = [bar(6), bar(6, 2)]
+
+    // tricks: one every two beats, then everyone
+    const T = bar(7)
+    const tricks = [
+      ['inky', 'stamp', 0],
+      ['dice', 'lucky', 0.8],
+      ['ghost', 'boo', 0.1],
+      ['duck', 'flip', 0.15],
+      ['blocks', 'topple', 0.35],
+      ['moon', 'wax', 0.9]
+    ].map(([id, act, pre], k) => ({ id, act, pre, from: bar(7, 2 * k) - T }))
+    shots.push(scene('tricks', lang, T, bar(11), { items: [...tricks, { family: true, act: 'celebrate', from: bar(10) - T, stagger: 0.05 }] }))
+    marks.tricks = tricks.map((x) => T + x.from)
+    marks.family = bar(10)
+
+    const C = bar(11)
+    shots.push(scene('code', lang, C, bar(13), {
+      character: 'cloud',
+      lines: [[0.05, 0.45], [0.45, 1.3], [1.3, 1.95]],
+      appearAt: bar(12) - C,
+      states: [{ at: bar(12, 2) - C, state: 'done' }],
+      depsAt: bar(12, 3) - C
+    }))
+    marks.codeType = [C + 0.05, C + 1.95]
+    marks.codeAppear = bar(12)
+    marks.codeDone = bar(12, 2)
+
+    const S = bar(13)
+    const skill = { typeFrom: 0.1, typeTo: 1.5, sendAt: 1.7, liftAt: 1.75, popAt: bar(14) - S, name: true }
+    shots.push(scene('skill', lang, S, bar(15), skill))
+    marks.prompt = { from: S + skill.typeFrom, to: S + skill.typeTo, send: S + skill.sendAt, chars: null }
+    marks.ding = bar(14)
+
+    shots.push(site('studio', `${LOCAL}/skill/livelings/workspace/studio.html?char=./characters/toast.js`, bar(15), bar(16), { setup: [{ run: 600 }] }))
+
+    const E = bar(16)
+    shots.push(scene('end', lang, E, END, { titleAt: 0, launchAt: bar(16, 2) - E, enterAt: 0.15, subAt: 0.6, urlAt: 0.9, cheerAt: [bar(18) - E], jumpAt: [bar(20) - E] }))
+    marks.end = E
+    marks.launch = bar(16, 2)
+    marks.cheer = bar(18)
+    marks.finalHit = bar(20)
+    return { shots, marks, duration: END }
+  }
+
+  // long: narrated. Narration starts on bar 1 of the music.
+  const V = beats[4]
+  const F = (phrase, from) => V + vo.at(phrase, from)
+  const bar = (k, b = 0) => beats[4 * k + b]
+  const END = beats.at(-1) + 1.2
+  marks.voice = V
+
+  const homeEnd = F('每个活宝') - 0.3
+  shots.push(site('home', `${SITE}/`, 0, homeEnd, {
+    actions: [
+      { at: 0.3, type: 'move', from: [1400, 790], to: [1050, 560], dur: 0.9, ease: 'out' },
+      { at: F('你的鼠标'), type: 'move', ...card(cloud), dur: 0.7 },
+      { at: F('你的鼠标') + 1.0, type: 'move', ...card(ghost), dur: 1.1, arc: 0.05 },
+      { at: F('点一下') - 0.2, type: 'move', to: [650, 104], dur: 0.7 },
+      { at: F('吓一跳'), type: 'click' },
+      { at: F('吓一跳') + 0.45, type: 'move', ...card(cloud), dur: 0.8 },
+      { at: F('点开小云') + 0.37, type: 'click' },
+      { at: F('每一个演') + 0.2, type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.6 },
+      { at: F('放大任意'), type: 'click' },
+      { at: F('放大任意') + 0.55, type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.42], dur: 0.4 },
+      { at: F('戳它'), type: 'click' },
+      { at: F('拖它'), type: 'drag', toSel: '.grid-canvas', at2: [0.78, 0.36], dur: 0.5 },
+      { at: F('拖它') + 0.52, type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.45], dur: 0.12 },
+      ...[0, 1, 2, 3, 4, 5].map((k) => ({ at: F('挠它') + 0.05 + k * 0.13, type: 'move', toSel: '.grid-canvas', at2: [k % 2 ? 0.54 : 0.46, 0.46], dur: 0.12, ease: 'linear', arc: 0 }))
+    ]
+  }))
+  marks.inkDrop = F('吓一跳')
+  marks.cardClick = F('点开小云') + 0.37
+  marks.split = F('点开小云') + 0.56
+  marks.zoom = F('放大任意')
+  marks.poke = F('戳它')
+  marks.drag = F('拖它') + 0.5
+
+  const T = homeEnd
+  const tricksEnd = F('做产品') - 0.25
+  const items = [
+    { family: true, act: 'hello', from: 0 },
+    { id: 'inky', act: 'stamp', from: F('小墨') - T },
+    { id: 'dice', act: 'roll', pre: 0.1, from: F('点点') - T },
+    { id: 'ghost', act: 'vanish', from: F('飘飘') - T },
+    { id: 'duck', act: 'squeak', from: F('嘎嘎') - T },
+    { id: 'moon', act: 'wax', pre: 0.1, from: F('月月') - T }
   ]
+  shots.push(scene('tricks', lang, T, tricksEnd, { items }))
+  marks.tricks = items.slice(1).map((x) => T + x.from)
+
+  const S1 = tricksEnd
+  const codeStart = F('现在复制') - 0.2
+  shots.push(scene('states', lang, S1, codeStart, { cards: [F('加载') - S1, F('出错') - S1, F('完成', '出错') - S1], focusAt: F('转圈圈') - S1 }))
+  marks.cards = ['加载', '出错'].map((w) => F(w)).concat(F('完成', '出错'))
+
+  const C = codeStart
+  const skillStart = F('想要一个') - 0.3
+  shots.push(scene('code', lang, C, skillStart, {
+    character: 'cloud',
+    lines: [[0.2, 0.7], [0.7, 1.8], [1.8, 2.6]],
+    appearAt: F('会思考') - 0.15 - C,
+    states: [{ at: F('会欢呼') - C, state: 'done' }, { at: F('也会沮丧') - C, state: 'error' }],
+    depsAt: F('没有任何') - C
+  }))
+  marks.codeType = [C + 0.2, C + 2.6]
+  marks.codeAppear = F('会思考') - 0.15
+  marks.codeDone = F('会欢呼')
+  marks.codeError = F('也会沮丧')
+
+  const S = skillStart
+  const studioStart = F('导出图片') - 0.2
+  const skill = { askAt: F('想要一个') - S, typeFrom: F('说一句') - S, typeTo: F('它先给你') - 0.5 - S, sendAt: F('它先给你') - 0.3 - S, liftAt: F('它先给你') - S, popAt: F('再把你选中') + 0.3 - S, name: true }
+  shots.push(scene('skill', lang, S, studioStart, skill))
+  marks.prompt = { from: S + skill.typeFrom, to: S + skill.typeTo, send: S + skill.sendAt }
+  marks.ding = S + skill.popAt
+
+  const cardStart = F('配插画') - 0.25
+  shots.push(site('studio', `${LOCAL}/skill/livelings/workspace/studio.html?char=./characters/toast.js`, studioStart, cardStart, {
+    setup: [{ run: 600 }],
+    actions: [
+      { at: 0.1, type: 'move', from: [1300, 700], toSel: '#png', dur: 0.6 },
+      { at: F('视频') - studioStart, type: 'move', toSel: '#rec', dur: 0.4 }
+    ]
+  }))
+  const lastToast = F('这片吐司') - 0.15
+  shots.push(site('card', `${LOCAL}/skill/livelings/workspace/card.html?spec=${encodeURIComponent(`${SCENES}/cards/inky-${lang}.json`)}`, cardStart, lastToast, {
+    css: '#bar { display: none !important; } body { background: #f7f3ea !important; } canvas { width: 100vw !important; height: 100vh !important; box-shadow: none !important; }'
+  }))
+  const endStart = F('活宝是') - 0.4
+  shots.push(scene('skill-again', lang, lastToast, endStart, { popAt: 0.25, happyAt: 1.5, tone: '#fde7c8', name: true }))
+  marks.ding2 = lastToast + 0.25
+
+  const E = endStart
+  shots.push(scene('end', lang, E, END, {
+    titleAt: 0,
+    enterAt: 0.15,
+    launchAt: F('开源项目') - E,
+    subAt: F('免费商用') - 1.2 - E,
+    urlAt: F('打开活宝') - E,
+    urlFlashAt: F('打开活宝') - E,
+    jumpAt: [F('戳戳它们') + 0.35 - E],
+    cheerAt: [bar(34) - E]
+  }))
+  marks.end = E
+  marks.launch = F('开源项目')
+  marks.url = F('打开活宝')
+  marks.finalHit = F('戳戳它们') + 0.35
+  marks.cheer = bar(34)
+  return { shots, marks, duration: END }
 }

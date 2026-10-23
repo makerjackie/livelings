@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "serve": "node tools/serve.mjs",
-    "beats": "python3 tools/beats.py public/music/scene-funk-90.mp3 beats.json",
+    "stems": "python3 tools/stems.py",
     "capture": "node tools/capture.mjs",
     "studio": "remotion studio src/index.ts",
-    "render:zh": "remotion render src/index.ts Film-zh renders/livelings-launch-zh-raw.mp4 --crf=12 --concurrency=4",
-    "render:en": "remotion render src/index.ts Film-en renders/livelings-launch-en-raw.mp4 --crf=12 --concurrency=4",
+    "render:short-zh": "remotion render src/index.ts Short-zh renders/livelings-short-zh-raw.mp4 --crf=12 --concurrency=4",
+    "render:short-en": "remotion render src/index.ts Short-en renders/livelings-short-en-raw.mp4 --crf=12 --concurrency=4",
+    "render:long-zh": "remotion render src/index.ts Long-zh renders/livelings-long-zh-raw.mp4 --crf=12 --concurrency=4",
     "finish": "bash tools/finish.sh"
   },
   "dependencies": {

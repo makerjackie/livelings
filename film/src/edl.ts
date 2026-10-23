@@ -1,50 +1,23 @@
-// The edit: where each shot sits, the captions and every sound, all on the
-// soundtrack's beat map (bar k = beat 1 + 4k).
-import beatMap from '../beats.json'
-import { CODE, PROMPT, typedAt } from '../cues.mjs'
-import { PLACES } from '../tools/shots.mjs'
+// The two edits: shots from the shared plan, captions and every sound.
+import longBeats from '../edits/long-beats.json'
+import shortBeats from '../edits/short-beats.json'
+import voZh from '../public/voice/vo-zh.json'
+import { narration, plan } from '../tools/shots.mjs'
 
 export const FPS = 60
-const beats: number[] = beatMap.beats
-const BEAT = beatMap.period
-
-/** film time of bar k (fractional bars are quarter notes), plus b beats */
-export const bar = (k: number, b = 0) => beats[1 + Math.round(4 * k) + b]
 export const f = (s: number) => Math.round(s * FPS)
 
-export const MUSIC_END = beatMap.duration
-export const FILM_FRAMES = f(MUSIC_END + 0.6)
-
 export type Lang = 'zh' | 'en'
-
-/* ------------------------------------------------------------ shots */
+export type EditId = 'short' | 'long'
 
 export interface Shot {
   id: string
+  kind: 'site' | 'scene'
   at: number
   end: number
-  /** slow push-in: scale at the start and the end, and where it pushes to */
-  zoom?: [number, number]
-  origin?: [number, number]
+  url: string
 }
 
-const ORDER = ['hook', 'states', 'title', 'home', 'play', 'tricks', 'showcase', 'code', 'pause', 'toasty', 'studio', 'card', 'end'] as const
-const startOf = (id: string) => (id === 'hook' ? 0 : bar((PLACES as Record<string, number[]>)[id][0]))
-const PUSH: Record<string, Pick<Shot, 'zoom' | 'origin'>> = {
-  showcase: { zoom: [1, 1.07], origin: [0.45, 0.55] },
-  studio: { zoom: [1, 1.05], origin: [0.3, 0.25] },
-  card: { zoom: [1, 1.05], origin: [0.7, 0.55] }
-}
-export const SHOTS: Shot[] = ORDER.map((id, i) => ({
-  id,
-  at: startOf(id),
-  end: i + 1 < ORDER.length ? startOf(ORDER[i + 1]) : MUSIC_END + 0.6,
-  ...PUSH[id]
-}))
-
-/* ------------------------------------------------------------ captions */
-
-/** `**word**` is highlighted. Times are film seconds. */
 export interface Caption {
   from: number
   to: number
@@ -52,97 +25,176 @@ export interface Caption {
   en: string
 }
 
-export const CAPTIONS: Caption[] = [
-  { from: bar(2, 1), to: bar(4), zh: '思考、出错、完成……', en: 'Thinking. Failing. Done.' },
-  { from: bar(4), to: bar(6) - 0.12, zh: '每个状态，都**演**给你看', en: 'Every state, **acted out**' },
-  { from: bar(8, 2), to: bar(10, 2), zh: '它们一直**盯着你的鼠标**', en: 'They **watch your cursor**' },
-  { from: bar(10, 2), to: bar(12), zh: '点一下空白处，**全员吓一跳**', en: 'Click the page: **everyone jumps**' },
-  { from: bar(12), to: bar(14), zh: '点开一个，**分成 16 个**', en: 'Open one: it **splits into sixteen**' },
-  { from: bar(14), to: bar(16), zh: '每格演一个动作，**放大随便挑**', en: 'Each tile acts a move. **Zoom in, pick any.**' },
-  { from: bar(16), to: bar(18), zh: '**戳一戳**，**拖一拖**', en: '**Poke it.** **Stretch it.**' },
-  { from: bar(18), to: bar(20) - 0.12, zh: '挠一挠、连点几下，它都**有反应**', en: 'Tickle it, tap it: it **always answers**' },
-  { from: bar(20, 1), to: bar(23), zh: '每一个，都有**自己的绝活**', en: 'Each one has **its own tricks**' },
-  { from: bar(24), to: bar(26), zh: '放进**真实的产品**里', en: 'Inside **real products**' },
-  { from: bar(26), to: bar(28) - 0.12, zh: '墨团习惯：**已上架 App Store**', en: 'Inky Habits: **live on the App Store**' },
-  { from: bar(28, 1), to: bar(30) - 0.1, zh: '**三行代码**，放进你的网页', en: '**Three lines** in your page' },
-  { from: bar(31.75) + 0.35, to: bar(35), zh: '**活宝 Skill**：一句话，捏一个你自己的', en: '**The Livelings skill**: one sentence, your own mascot' },
-  { from: bar(35), to: bar(37) - 0.1, zh: '还能用它给**文章配插画**', en: 'It **illustrates your articles** too' }
-]
-
-/* ------------------------------------------------------------ sound */
-
 export interface Sfx {
   at: number
   src: string
   volume?: number
 }
 
-const s = (at: number, src: string, volume = 0.6): Sfx => ({ at, src, volume })
+export interface Edit {
+  id: EditId
+  lang: Lang
+  duration: number
+  shots: Shot[]
+  captions: Caption[]
+  sounds: Sfx[]
+  music: string
+  /** music volume over film time (narration ducks it) */
+  musicVolume: (t: number) => number
+  voice?: { src: string; at: number; length: number }
+  /** caption look: big stickers for the short, subtitles for the narrated one */
+  captionStyle: 'sticker' | 'subtitle'
+}
 
-export function soundsFor(lang: Lang): Sfx[] {
-  const list: Sfx[] = [
-    // the spinner turns into Inky
-    s(bar(1) - 0.02, 'pop-5', 0.85),
-    // status cards land, then each icon becomes a character
-    s(bar(2), 'sfx-ui-12', 0.45),
-    s(bar(2) + BEAT * 0.5, 'sfx-ui-12', 0.45),
-    s(bar(2) + BEAT, 'sfx-ui-12', 0.45),
-    s(bar(3) - 0.02, 'pop-3', 0.8),
-    s(bar(4) - 0.02, 'pop-4', 0.8),
-    s(bar(4) + 0.12, 'sfx-notification-02', 0.3),
-    s(bar(5) - 0.02, 'pop-6', 0.8),
-    s(bar(5) + 0.25, 'sfx-water-07', 0.45),
-    // the name lands like a stamp; the family pops up one per beat, up a scale
-    s(bar(6) - 0.02, 'stamp', 0.85),
-    ...[1, 2, 3, 4, 5, 6, 7].map((k) => s(bar(6, k) - 0.01, `pop-${k}`, 0.7)),
-    // home: a drop of ink, everyone jumps; a card opens and splits
-    s(bar(10, 2), 'sfx-water-01', 0.9),
-    s(bar(10, 2) + 0.12, 'sfx-impact-07', 0.4),
-    s(bar(12) - 0.19, 'sfx-ui-01', 0.7),
-    s(bar(12) - 0.05, 'sfx-transition-04', 0.55),
-    s(bar(14), 'sfx-ui-01', 0.6),
-    s(bar(14) + 0.02, 'sfx-transition-01', 0.4),
-    s(bar(15), 'sfx-ui-01', 0.6),
-    // play with Inky
-    s(bar(16, 1), 'sfx-impact-07', 0.6),
-    s(bar(17) + 0.9, 'sfx-impact-18', 0.55),
-    s(bar(18) + 0.25, 'sfx-magic-14', 0.4),
-    s(bar(19, 0), 'sfx-ui-01', 0.55),
-    s(bar(19, 1), 'sfx-ui-01', 0.55),
-    s(bar(19, 2), 'sfx-ui-01', 0.55),
-    s(bar(19, 2) + 0.1, 'sfx-impact-18', 0.35),
-    // tricks
-    s(bar(20) - 0.02, 'whoosh', 0.45),
-    s(bar(20) + 0.05, 'sfx-foley-15', 0.7),
-    s(bar(20) + 0.35, 'sfx-transition-01', 0.5),
-    s(bar(21) - 0.02, 'whoosh', 0.45),
-    s(bar(21) + 0.25, 'sfx-foley-18', 0.55),
-    s(bar(21) + 0.75, 'sfx-impact-11', 0.55),
-    s(bar(22) - 0.02, 'whoosh', 0.45),
-    s(bar(22) + 0.2, 'sfx-magic-14', 0.45),
-    s(bar(22) + 0.45, 'sfx-impact-11', 0.4),
-    s(bar(23) - 0.02, 'whoosh', 0.45),
-    s(bar(23) + 0.5, 'stamp', 0.85),
-    // products: a habit gets stamped
-    s(bar(25) - 0.02, 'sfx-ui-01', 0.6),
-    s(bar(25) + 0.35, 'stamp', 0.5),
-    // code: keys while it types, a pop when the element appears, a chime on done
-    ...CODE.flatMap((line) => {
-      const out: Sfx[] = []
-      for (let t = line.from * BEAT; t < line.to * BEAT - 0.05; t += 0.085) out.push(s(bar(28) + t, 'sfx-mechanical-03', 0.16))
-      return out
-    }),
-    s(bar(29) - 0.02, 'pop-5', 0.75),
-    s(bar(29, 2), 'sfx-notification-05', 0.55),
-    // the pause: only the keys, then send; DING when the music comes back
-    ...[...PROMPT[lang]].map((_, i) => s(bar(30) + typedAt(lang, i), 'sfx-mechanical-03', 0.3)),
-    s(bar(30) + typedAt(lang, [...PROMPT[lang]].length) + 0.25, 'sfx-ui-01', 0.7),
-    s(bar(31.75) - 0.01, 'ding', 0.95),
-    s(bar(33) - 0.02, 'whoosh', 0.45),
-    s(bar(35) - 0.02, 'sfx-transition-01', 0.45),
-    // the end card
-    s(bar(37) - 0.02, 'sfx-transition-20', 0.55),
-    s(bar(37) + 0.1, 'sfx-magic-14', 0.5)
+const s = (at: number, src: string, volume = 0.6): Sfx => ({ at, src, volume })
+const BEAT = shortBeats.period
+
+/**
+ * Long subtitles: each narration sentence split at its punctuation, using the
+ * sentence text (which keeps the spaces around English words), timed by the
+ * start of each piece's first word.
+ */
+function subtitles(json: typeof voZh, offset: number): Caption[] {
+  const out: Caption[] = []
+  for (const sentence of json.sentences) {
+    const text: string = sentence.text
+    if (!text.trim() || !sentence.words.length) continue
+    // when each character of the text is spoken
+    const when: Array<number | undefined> = new Array(text.length)
+    let ptr = 0
+    for (const w of sentence.words) {
+      for (const ch of w.word) {
+        const j = text.indexOf(ch, ptr)
+        if (j < 0) continue
+        when[j] = w.startTime
+        ptr = j + 1
+      }
+    }
+    const pieces: Array<{ from: number; zh: string }> = []
+    let buf = ''
+    let first = -1
+    const flush = () => {
+      const zh = buf.replace(/[，。：；、]+$/, '').trim()
+      if (zh && first >= 0) {
+        let k = first
+        while (k > 0 && when[k] === undefined) k--
+        pieces.push({ from: offset + (when[k] ?? sentence.words[0].startTime) - 0.12, zh })
+      }
+      buf = ''
+      first = -1
+    }
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (first < 0 && ch.trim()) first = i
+      buf += ch
+      if (/[，。：；？！]/.test(ch)) flush()
+    }
+    flush()
+    const endTime = offset + sentence.words.at(-1)!.endTime + 0.25
+    pieces.forEach((p, i) => out.push({ from: p.from, to: i + 1 < pieces.length ? pieces[i + 1].from : endTime, zh: p.zh, en: '' }))
+  }
+  for (let i = 0; i < out.length - 1; i++) out[i].to = Math.min(out[i].to, out[i + 1].from)
+  return out
+}
+
+export function buildEdit(id: EditId, lang: Lang): Edit {
+  if (id === 'short') {
+    const beats = shortBeats.beats
+    const bar = (k: number, b = 0) => beats[4 * k + b] ?? beats.at(-1)! + BEAT
+    const { shots, marks, duration } = plan({ edit: 'short', lang, beats, vo: null }) as unknown as { shots: Shot[]; marks: Record<string, any>; duration: number }
+    const captions: Caption[] = [
+      { from: 0.15, to: bar(1) - 0.05, zh: '**活宝** · 开源发布', en: '**Livelings** · open source' },
+      { from: bar(1), to: bar(2, 2) - 0.05, zh: '它们会**盯着你的鼠标**', en: 'They **watch your cursor**' },
+      { from: bar(2, 2), to: bar(4) - 0.1, zh: '点一下，**全员吓一跳**', en: 'Click: **everyone jumps**' },
+      { from: bar(4), to: bar(5, 1) - 0.05, zh: '点开一个，**分成 16 个**', en: 'Open one, get **sixteen**' },
+      { from: bar(5, 1), to: bar(7) - 0.08, zh: '放大，**随便挑动作**', en: 'Zoom in, **pick any move**' },
+      { from: bar(7), to: bar(10) - 0.08, zh: '每个都有**自己的绝活**', en: 'Each one has **its own tricks**' },
+      { from: bar(11), to: bar(13) - 0.08, zh: '**三行代码**，放进网页', en: '**Three lines** in your page' },
+      { from: bar(13), to: bar(16) - 0.08, zh: '一句话，**捏一个你自己的**', en: 'One sentence, **your own mascot**' }
+    ]
+    const p = marks.prompt
+    const sounds: Sfx[] = [
+      s(0.02, 'stamp', 0.7),
+      s(marks.inkDrop, 'sfx-water-01', 0.9),
+      s(marks.inkDrop + 0.1, 'sfx-impact-07', 0.4),
+      s(marks.cardClick, 'sfx-ui-01', 0.7),
+      s(marks.split - 0.04, 'sfx-transition-04', 0.55),
+      s(marks.zoom, 'sfx-ui-01', 0.6),
+      s(marks.zoom + 0.02, 'sfx-transition-01', 0.4),
+      ...marks.picks.map((t: number) => s(t, 'sfx-ui-01', 0.6)),
+      s(marks.picks[0] + 0.35, 'sfx-impact-11', 0.45),
+      s(marks.picks[1] + 0.2, 'sfx-magic-14', 0.35),
+      ...marks.tricks.map((t: number, i: number) => s(t - 0.02, `pop-${i + 1}`, 0.65)),
+      s(marks.tricks[0] + 0.5, 'stamp', 0.7),
+      s(marks.tricks[1] + 0.3, 'sfx-foley-15', 0.6),
+      s(marks.tricks[2] + 0.25, 'sfx-transition-01', 0.45),
+      s(marks.tricks[4] + 0.4, 'sfx-impact-11', 0.5),
+      s(marks.tricks[5] + 0.3, 'sfx-magic-14', 0.4),
+      s(marks.family, 'sfx-magic-14', 0.5),
+      ...Array.from({ length: 12 }, (_, k) => s(marks.codeType[0] + k * ((marks.codeType[1] - marks.codeType[0]) / 12), 'sfx-mechanical-03', 0.16)),
+      s(marks.codeAppear - 0.02, 'pop-5', 0.7),
+      s(marks.codeDone, 'sfx-notification-05', 0.5),
+      ...Array.from({ length: 10 }, (_, k) => s(p.from + k * ((p.to - p.from) / 10), 'sfx-mechanical-03', 0.2)),
+      s(p.send, 'sfx-ui-01', 0.7),
+      s(marks.ding - 0.01, 'ding', 0.95),
+      s(bar(15) - 0.02, 'whoosh', 0.4),
+      s(marks.end - 0.02, 'sfx-transition-20', 0.5),
+      s(marks.launch, 'stamp', 0.75),
+      s(marks.cheer, 'sfx-magic-14', 0.45),
+      s(marks.finalHit, 'sfx-impact-07', 0.5)
+    ]
+    return { id, lang, duration, shots, captions, sounds, music: 'music/short.wav', musicVolume: () => 0.85, captionStyle: 'sticker' }
+  }
+
+  // long, narrated (Chinese)
+  const vo = narration(voZh)
+  const beats = longBeats.beats
+  const { shots, marks, duration } = plan({ edit: 'long', lang, beats, vo }) as unknown as { shots: Shot[]; marks: Record<string, any>; duration: number }
+  const V = marks.voice as number
+  const VO_LEN = 67.43
+  const p = marks.prompt
+  const sounds: Sfx[] = [
+    s(0.02, 'stamp', 0.45),
+    s(marks.inkDrop, 'sfx-water-01', 0.8),
+    s(marks.inkDrop + 0.1, 'sfx-impact-07', 0.3),
+    s(marks.cardClick, 'sfx-ui-01', 0.6),
+    s(marks.split - 0.04, 'sfx-transition-04', 0.45),
+    s(marks.zoom, 'sfx-ui-01', 0.5),
+    s(marks.poke, 'sfx-impact-07', 0.45),
+    s(marks.drag, 'sfx-impact-18', 0.4),
+    ...marks.tricks.map((t: number, i: number) => s(t - 0.02, `pop-${i + 2}`, 0.5)),
+    s(marks.tricks[0] + 0.5, 'stamp', 0.55),
+    s(marks.tricks[1] + 0.15, 'sfx-foley-15', 0.5),
+    s(marks.tricks[3] + 0.15, 'sfx-foley-18', 0.45),
+    ...marks.cards.map((t: number) => s(t, 'sfx-ui-12', 0.4)),
+    ...Array.from({ length: 10 }, (_, k) => s(marks.codeType[0] + k * ((marks.codeType[1] - marks.codeType[0]) / 10), 'sfx-mechanical-03', 0.14)),
+    s(marks.codeAppear - 0.02, 'pop-5', 0.55),
+    s(marks.codeDone, 'sfx-notification-05', 0.4),
+    s(marks.codeError, 'sfx-notification-02', 0.3),
+    ...Array.from({ length: 14 }, (_, k) => s(p.from + k * ((p.to - p.from) / 14), 'sfx-mechanical-03', 0.18)),
+    s(p.send, 'sfx-ui-01', 0.55),
+    s(marks.ding - 0.01, 'ding', 0.8),
+    s(marks.ding2 - 0.01, 'ding', 0.6),
+    s(marks.end - 0.02, 'sfx-transition-20', 0.4),
+    s(marks.launch, 'stamp', 0.6),
+    s(marks.url, 'sfx-magic-14', 0.35),
+    s(marks.finalHit, 'sfx-impact-07', 0.45),
+    s(marks.cheer, 'sfx-magic-14', 0.4)
   ]
-  return list
+  const duck = (t: number) => {
+    const inVo = Math.min(Math.max((t - (V - 0.4)) / 0.4, 0), 1) * Math.min(Math.max((V + VO_LEN + 0.3 - t) / 0.6, 0), 1)
+    return 0.75 - 0.5 * inVo
+  }
+  return {
+    id,
+    lang,
+    duration,
+    shots,
+    captions: subtitles(voZh, V),
+    sounds,
+    music: 'music/long.wav',
+    musicVolume: duck,
+    voice: { src: 'voice/vo-zh.wav', at: V, length: VO_LEN },
+    captionStyle: 'subtitle'
+  }
 }

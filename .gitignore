@@ -18,3 +18,7 @@ film/scenes/shots/
 
 # launch drafts and notes stay local
 launch/
+
+# music stems are rebuilt by film/tools/stems.py
+film/public/music/short.wav
+film/public/music/long.wav

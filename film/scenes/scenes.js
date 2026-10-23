@@ -1,20 +1,16 @@
-// Scenes for the Livelings launch film, drawn with the real engine at 1440×810.
-//   /?scene=hook&lang=zh&t0=0
-// t0 is where the scene starts in the film, so beats from beats.json can be
-// turned into local time. Time comes from performance.now(), which the capture
-// tool drives frame by frame.
+// Scenes for the Livelings films, drawn with the real engine at 1440×810.
+//   /?scene=tricks&lang=zh&p=<json>
+// Every time in `p` is in seconds from the start of the scene; tools/shots.mjs
+// works them out from the music and the narration. Time comes from
+// performance.now(), which the capture tool drives frame by frame.
 import * as L from './livelings.js'
 import toast from './characters/toast.js'
-import { CODE, PROMPT, typedAt } from './cues.mjs'
+import { codeLines, PROMPT } from './cues.mjs'
 
 const q = new URLSearchParams(location.search)
-const id = q.get('scene') ?? 'hook'
+const id = q.get('scene') ?? 'tricks'
 const lang = q.get('lang') === 'en' ? 'en' : 'zh'
-const t0 = Number(q.get('t0') ?? 0)
-const { beats } = await (await fetch('./beats.json')).json()
-/** local time of bar k (fractional bars are quarter notes) plus b beats */
-const bar = (k, b = 0) => beats[1 + Math.round(4 * k) + b] - t0
-const BEAT = beats[2] - beats[1]
+const P = JSON.parse(q.get('p') ?? '{}')
 
 const W = 1440
 const H = 810
@@ -24,16 +20,18 @@ canvas.width = W * dpr
 canvas.height = H * dpr
 const g = canvas.getContext('2d')
 
-const C = L.CHARACTERS
-const FAMILY = [C.inky, C.doudou, C.dice, C.ghost, C.duck, C.blocks, C.moon]
-const TONES = { inky: '#fbefc2', doudou: '#d9ecfb', dice: '#e9e4f7', ghost: '#dfe3ec', duck: '#dcf1fb', blocks: '#fbe9d8', moon: '#e6e4f5', toast: '#fde7c8' }
+const C = { ...L.CHARACTERS, toast }
+const FAMILY = ['cloud', 'inky', 'dice', 'ghost', 'duck', 'blocks', 'moon']
+const TONES = { cloud: '#d9ecfb', inky: '#fbefc2', dice: '#e9e4f7', ghost: '#dfe3ec', duck: '#dcf1fb', blocks: '#fbe9d8', moon: '#e6e4f5', toast: '#fde7c8' }
 const INK = '#171614'
 const MUTED = '#6b665c'
 const PAPER = '#f4f0e6'
 const ZH = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
 const BRAND = '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif'
 const MONO = 'ui-monospace, "SF Mono", Menlo, monospace'
+const FONT = lang === 'zh' ? ZH : BRAND
 const tx = (t) => (t ? t[lang] : '')
+const nameOf = (cid) => (cid === 'toast' ? (lang === 'zh' ? '吐吐' : 'Toasty') : tx(C[cid].name))
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x))
 const easeOut = (x) => 1 - Math.pow(1 - clamp01(x), 3)
@@ -71,332 +69,235 @@ function rrect(x, y, w, h, r) {
   g.roundRect(x, y, w, h, r)
 }
 
-function text(str, x, y, { size = 40, weight = 700, color = INK, align = 'center', font = ZH, alpha = 1, base = 'alphabetic' } = {}) {
+function text(str, x, y, { size = 40, weight = 700, color = INK, align = 'center', font = FONT, alpha = 1 } = {}) {
   g.save()
   g.globalAlpha *= alpha
   g.font = `${weight} ${size}px ${font}`
   g.fillStyle = color
   g.textAlign = align
-  g.textBaseline = base
+  g.textBaseline = 'alphabetic'
   g.fillText(str, x, y)
   g.restore()
 }
 
+/** Something landing like a stamp at `at`: returns [scale, rotation, alpha]. */
+const stamp = (t, at, d = 0.32) => {
+  const k = easeBack((t - at) / d)
+  return [1.18 - 0.18 * k, (1 - k) * -0.06, clamp01((t - at) / 0.1)]
+}
+
 /** A big line of copy: Chinese with a small English line under it, or English alone. */
-function say(t, { zh, en }, x, y, { size = 64, appear = 0, gone = Infinity } = {}) {
-  const k = easeBack((t - appear) / 0.32)
-  const out = clamp01((t - gone) / 0.14)
-  if (t < appear || out >= 1) return
+function say(t, copy, x, y, { size = 72, at = 0 } = {}) {
+  if (t < at) return
+  const [s, r, a] = stamp(t, at)
   g.save()
   g.translate(x, y)
-  const s = (0.86 + 0.14 * k) * (1 - 0.1 * out)
   g.scale(s, s)
-  g.rotate((1 - k) * -0.05)
-  g.globalAlpha = clamp01((t - appear) / 0.12) * (1 - out)
+  g.rotate(r)
+  g.globalAlpha = a
   if (lang === 'zh') {
-    text(zh, 0, 0, { size, weight: 600 })
-    text(en, 0, size * 0.72, { size: size * 0.4, weight: 600, color: MUTED, font: BRAND })
-  } else text(en, 0, 0, { size, weight: 750, font: BRAND })
+    text(copy.zh, 0, 0, { size, weight: 600, font: ZH })
+    text(copy.en, 0, size * 0.7, { size: size * 0.38, weight: 600, color: MUTED, font: BRAND })
+  } else text(copy.en, 0, 0, { size, weight: 750, font: BRAND })
   g.restore()
 }
 
-/** A character on stage: an actor, where it stands, and an optional pop-in. */
+/** A character on stage. */
 class Cast {
-  constructor(def, x, y, R, opts = {}) {
-    this.a = new L.Actor(def, { fidget: false, ...opts })
+  constructor(cid, x, y, R, opts = {}) {
+    this.id = cid
+    this.a = new L.Actor(C[cid], { fidget: false })
     this.x = x
     this.y = y
     this.R = R
-    this.shadow = opts.shadow ?? true
-    this.from = opts.enter ?? -Infinity
-    if (opts.enter !== undefined) this.a.scale.snap(0.05)
     this.a.advance(0.4)
+    if (opts.pop) this.a.scale.snap(0.05)
   }
   enter() {
     this.a.scale.value = 0.05
     this.a.scale.target = 1
     this.a.hop(0.8)
   }
-  draw() {
-    L.renderActor(g, this.a, { cx: this.x, cy: this.y, R: this.R, shadow: this.shadow })
+  /** play an action as if it had started `pre` seconds ago */
+  act(name, pre = 0) {
+    this.a.play(name)
+    for (let k = 0; k < Math.round(pre * 120); k++) this.a.advance(1 / 120)
+  }
+  draw(dt) {
+    this.a.advance(dt)
+    L.renderActor(g, this.a, { cx: this.x, cy: this.y, R: this.R, shadow: true })
   }
 }
 
-/** Events at local times, run once each as time passes them. */
+/** Events at local times, each run once as time passes it. */
 function timeline(list) {
   const done = new Set()
-  return (t) => list.forEach((e, i) => {
-    if (!done.has(i) && t >= e[0]) {
-      done.add(i)
-      e[1]()
-    }
-  })
+  return (t) =>
+    list.forEach((e, i) => {
+      if (!done.has(i) && t >= e[0]) {
+        done.add(i)
+        e[1]()
+      }
+    })
+}
+
+function nameTag(x, y, main, sub) {
+  g.font = `600 34px ${FONT}`
+  const w1 = g.measureText(main).width
+  g.font = `500 26px ${FONT}`
+  const w2 = sub ? g.measureText(sub).width : 0
+  const w = w1 + (sub ? w2 + 24 : 0) + 52
+  g.fillStyle = '#fffdf8'
+  rrect(x, y, w, 66, 33)
+  g.fill()
+  text(main, x + 26, y + 45, { size: 34, weight: 600, align: 'left' })
+  if (sub) text(sub, x + 26 + w1 + 24, y + 44, { size: 26, weight: 500, color: MUTED, align: 'left' })
 }
 
 /* ------------------------------------------------------------ scenes */
 
 const SCENES = {
-  /* a spinner turns into Inky */
-  hook() {
-    const b1 = bar(1)
-    const inky = new Cast(C.inky, 720, 470, 122, { enter: b1 })
-    let born = false
-    const run = timeline([
-      [b1, () => {
-        born = true
-        inky.enter()
-        inky.a.flash('surprised', 0.5)
-      }],
-      [b1 + BEAT * 1.2, () => inky.a.lookAt(0, 0.1)],
-      [bar(1, 2), () => inky.a.play('thinking')]
-    ])
+  /* one trick after another, full frame; `family` items show everyone at once */
+  tricks() {
+    const items = P.items ?? []
+    let cur = null
+    let row = null
+    const run = timeline(
+      items.map((it) => [it.from - 0.0001, () => {
+        if (it.family) {
+          cur = null
+          row = FAMILY.map((cid, i) => {
+            const c = new Cast(cid, 720 + (i - 3) * 184, 430, 66)
+            c.at = it.from + i * (it.stagger ?? 0.06)
+            return c
+          })
+          row.act = it.act ?? 'hello'
+        } else {
+          row = null
+          cur = new Cast(it.id, 720, 455, it.R ?? 175)
+          cur.act(it.act, it.pre ?? 0)
+          cur.label = it.label ?? tx(cur.a.behaviors[it.act].label)
+        }
+      }])
+    )
+    const played = new Set()
     return (t, dt) => {
       run(t)
-      paper()
-      say(t, { zh: '又在转圈圈？', en: 'Another spinner?' }, 720, 196, { size: 80, gone: b1 - 0.05 })
-      say(t, { zh: '让它活过来。', en: 'Let it come alive.' }, 720, 196, { size: 80, appear: b1 + 0.08 })
-      // the spinner: a grey arc that collapses into a dot when Inky arrives
-      const k = clamp01((t - (b1 - 0.12)) / 0.16)
-      if (k < 1) {
-        const r = 74 * (1 - easeOut(k))
-        const spin = t * Math.PI * 2 * 1.15
-        g.save()
-        g.translate(720, 450)
-        g.rotate(spin)
-        g.strokeStyle = '#bdb6a6'
-        g.lineWidth = 13 * (1 - k * 0.5)
-        g.lineCap = 'round'
-        g.beginPath()
-        g.arc(0, 0, Math.max(0.1, r), 0, Math.PI * 1.5 * (1 - k))
-        g.stroke()
-        g.restore()
-      }
-      text(lang === 'zh' ? '加载中…' : 'Loading…', 720, 580, { size: 22, weight: 500, color: '#a39d90', alpha: 1 - clamp01((t - b1) / 0.2), font: lang === 'zh' ? ZH : BRAND })
-      if (born) {
-        inky.a.advance(dt)
-        inky.draw()
-      }
+      if (cur) {
+        paper(TONES[cur.id])
+        cur.draw(dt)
+        nameTag(56, 52, nameOf(cur.id), cur.label)
+      } else if (row) {
+        paper()
+        row.forEach((c, i) => {
+          if (!played.has(i) && t >= c.at) {
+            played.add(i)
+            c.enter()
+            c.a.play(row.act)
+          }
+          c.draw(dt)
+          text(nameOf(c.id), c.x, 580, { size: 30, weight: 600 })
+        })
+      } else paper()
     }
   },
 
-  /* three plain status cards; each icon becomes a character acting it out */
+  /* plain status cards: a spinner, a red mark, a green check */
   states() {
     const xs = [270, 720, 1170]
-    const labels = lang === 'zh' ? ['思考中…', '出错了', '完成！'] : ['Thinking…', 'Something broke', 'Done!']
-    const who = [
-      new Cast(C.doudou, xs[0], 350, 86, { enter: 0 }),
-      new Cast(C.dice, xs[1], 350, 78, { enter: 0 }),
-      new Cast(C.duck, xs[2], 350, 84, { enter: 0 })
-    ]
-    const acts = ['thinking', 'error', 'done']
-    const swap = [bar(3), bar(4), bar(5)]
-    const live = [false, false, false]
-    const run = timeline(
-      swap.map((at, i) => [at, () => {
-        live[i] = true
-        who[i].enter()
-        who[i].a.play(acts[i])
-      }])
-    )
-    const again = [0, 0, 0]
-    return (t, dt) => {
-      run(t)
-      // error and done are one-shots: act them again while the card is on screen
-      who.forEach((c, i) => {
-        if (!live[i] || i === 0 || c.a.onceId) return
-        if ((again[i] += dt) > 0.5) {
-          again[i] = 0
-          c.a.play(acts[i])
-        }
-      })
+    const labels = lang === 'zh' ? ['加载中…', '出错了', '完成'] : ['Loading…', 'Something broke', 'Done']
+    const at = P.cards ?? [0, 0.3, 0.6]
+    return (t) => {
       paper()
       xs.forEach((x, i) => {
-        const inAt = BEAT * i * 0.5
-        const k = easeBack((t - inAt) / 0.4)
-        if (t < inAt) return
+        if (t < at[i]) return
+        const [s, r, a] = stamp(t, at[i], 0.4)
+        const dim = P.focusAt !== undefined && t > P.focusAt && i > 0 ? 1 - 0.55 * clamp01((t - P.focusAt) / 0.3) : 1
+        const grow = P.focusAt !== undefined && i === 0 ? 1 + 0.1 * easeOut((t - P.focusAt) / 0.4) : 1
         g.save()
-        g.translate(x, 395)
-        g.scale(0.9 + 0.1 * k, 0.9 + 0.1 * k)
-        g.rotate((1 - k) * -0.06)
-        g.globalAlpha = clamp01((t - inAt) / 0.15)
+        g.translate(x, 400)
+        g.scale(s * grow, s * grow)
+        g.rotate(r)
+        g.globalAlpha = a * dim
         g.shadowColor = 'rgba(60,45,10,0.18)'
         g.shadowBlur = 40
         g.shadowOffsetY = 16
         g.fillStyle = '#fffdf8'
         rrect(-205, -190, 410, 380, 28)
         g.fill()
-        g.restore()
-        // the old icon shrinks away as the character arrives
-        const gone = clamp01((t - swap[i] + 0.06) / 0.14)
-        if (gone < 1 && t >= inAt) {
-          g.save()
-          g.translate(x, 355)
-          g.scale(1.25 * (1 - gone), 1.25 * (1 - gone))
-          if (i === 0) {
-            g.rotate(t * Math.PI * 2.3)
-            g.strokeStyle = '#bdb6a6'
-            g.lineWidth = 9
-            g.lineCap = 'round'
-            g.beginPath()
-            g.arc(0, 0, 34, 0, Math.PI * 1.5)
-            g.stroke()
+        g.shadowColor = 'transparent'
+        g.translate(0, -45)
+        g.scale(1.25, 1.25)
+        if (i === 0) {
+          g.rotate(t * Math.PI * 2.3)
+          g.strokeStyle = '#bdb6a6'
+          g.lineWidth = 9
+          g.lineCap = 'round'
+          g.beginPath()
+          g.arc(0, 0, 34, 0, Math.PI * 1.5)
+          g.stroke()
+          g.rotate(-t * Math.PI * 2.3)
+        } else {
+          g.fillStyle = i === 1 ? '#e03131' : '#2f9e44'
+          g.beginPath()
+          g.arc(0, 0, 38, 0, Math.PI * 2)
+          g.fill()
+          g.strokeStyle = '#fff'
+          g.lineWidth = 7
+          g.lineCap = 'round'
+          g.lineJoin = 'round'
+          g.beginPath()
+          if (i === 1) {
+            g.moveTo(0, -17)
+            g.lineTo(0, 5)
+            g.moveTo(0, 17)
+            g.lineTo(0, 17.5)
           } else {
-            g.fillStyle = i === 1 ? '#e03131' : '#2f9e44'
-            g.beginPath()
-            g.arc(0, 0, 38, 0, Math.PI * 2)
-            g.fill()
-            g.strokeStyle = '#fff'
-            g.lineWidth = 7
-            g.lineCap = 'round'
-            g.lineJoin = 'round'
-            g.beginPath()
-            if (i === 1) {
-              g.moveTo(0, -17)
-              g.lineTo(0, 5)
-              g.moveTo(0, 17)
-              g.lineTo(0, 17.5)
-            } else {
-              g.moveTo(-15, 1)
-              g.lineTo(-4, 12)
-              g.lineTo(16, -11)
-            }
-            g.stroke()
+            g.moveTo(-15, 1)
+            g.lineTo(-4, 12)
+            g.lineTo(16, -11)
           }
-          g.restore()
+          g.stroke()
         }
-        if (live[i]) {
-          g.save()
-          rrect(x - 205, 205, 410, 380, 28)
-          g.clip()
-          who[i].a.advance(dt)
-          who[i].draw()
-          g.restore()
-        }
-        text(labels[i], x, 530, { size: 32, weight: 600, alpha: clamp01((t - inAt) / 0.15), font: lang === 'zh' ? ZH : BRAND })
-      })
-    }
-  },
-
-  /* the name, then the family pops up one per beat */
-  title() {
-    const cast = FAMILY.map((def, i) => new Cast(def, 720 + (i - 3) * 176, 598, 62, { enter: 0 }))
-    const shown = cast.map(() => false)
-    const run = timeline(
-      cast.map((c, i) => [bar(6, i + 1), () => {
-        shown[i] = true
-        c.enter()
-        c.a.play('hello')
-      }]).concat([[bar(7, 3) + BEAT * 0.6, () => cast.forEach((c) => c.a.play('happy'))]])
-    )
-    return (t, dt) => {
-      run(t)
-      paper()
-      const k = easeBack(t / 0.36)
-      g.save()
-      g.translate(720, 300)
-      g.scale(1.25 - 0.25 * k, 1.25 - 0.25 * k)
-      g.rotate((1 - k) * -0.06)
-      g.globalAlpha = clamp01(t / 0.1)
-      if (lang === 'zh') {
-        g.font = `600 128px ${ZH}`
-        const a = g.measureText('活宝 ').width
-        g.font = `800 128px ${BRAND}`
-        const b = g.measureText('Livelings').width
-        text('活宝', -(a + b) / 2, 0, { size: 128, weight: 600, align: 'left' })
-        text('Livelings', -(a + b) / 2 + a, 0, { size: 128, weight: 800, align: 'left', font: BRAND })
-      } else text('Livelings', 0, 0, { size: 150, weight: 800, font: BRAND })
-      g.restore()
-      const sub = clamp01((t - BEAT * 0.5) / 0.3)
-      if (lang === 'zh') {
-        text('会动、会回应的开源吉祥物', 720, 382, { size: 38, weight: 600, color: MUTED, alpha: sub })
-        text('Open-source mascots that are alive', 720, 418, { size: 20, weight: 600, color: '#a39d90', alpha: sub, font: BRAND })
-      } else text('Open-source mascots that are alive', 720, 386, { size: 40, weight: 600, color: MUTED, alpha: sub, font: BRAND })
-      cast.forEach((c, i) => {
-        if (!shown[i]) return
-        c.a.advance(dt)
-        c.draw()
-      })
-    }
-  },
-
-  /* each one's own trick, two at a time, then Inky on its own */
-  tricks() {
-    const pairs = [
-      [['dice', 'lucky'], ['ghost', 'boo']],
-      [['duck', 'flip'], ['blocks', 'topple']],
-      [['moon', 'wax'], ['doudou', 'thunder']],
-      [['inky', 'stamp']]
-    ]
-    let cur = []
-    const run = timeline(
-      pairs.map((pair, k) => [bar(20 + k) - 0.001, () => {
-        const half = W / pair.length
-        cur = pair.map(([cid, act], i) => {
-          const c = new Cast(C[cid], half * i + half / 2, pair.length === 1 ? 430 : 455, pair.length === 1 ? 150 : 122)
-          c.id = cid
-          c.act = act
-          c.x0 = half * i
-          c.w = half
-          c.a.play(act)
-          return c
-        })
-      }])
-    )
-    return (t, dt) => {
-      run(t)
-      paper()
-      for (const c of cur) {
-        g.save()
-        g.beginPath()
-        g.rect(c.x0, 0, c.w, H)
-        g.clip()
-        g.fillStyle = TONES[c.id]
-        g.fillRect(c.x0, 0, c.w, H)
+        g.scale(0.8, 0.8)
+        g.translate(0, 45 / 0.8 + 92)
+        text(labels[i], 0, 0, { size: 34, weight: 600 })
         g.restore()
-      }
-      for (const c of cur) {
-        g.save()
-        g.beginPath()
-        g.rect(c.x0, 0, c.w, H)
-        g.clip()
-        c.a.advance(dt)
-        c.draw()
-        // a name tag: who, and what it is doing
-        const name = tx(c.a.def.name)
-        const act = tx(c.a.behaviors[c.act].label)
-        g.font = `600 30px ${lang === 'zh' ? ZH : BRAND}`
-        const w = g.measureText(`${name} · ${act}`).width
-        g.fillStyle = '#fffdf8'
-        rrect(c.x0 + 40, 40, w + 44, 60, 30)
-        g.fill()
-        text(`${name} · ${act}`, c.x0 + 62, 81, { size: 30, weight: 600, align: 'left', font: lang === 'zh' ? ZH : BRAND })
-        g.restore()
-      }
+      })
     }
   },
 
   /* three lines of code; the element comes alive and changes state */
   code() {
-    const ghost = new Cast(C.ghost, 1168, 440, 84, { enter: 0 })
+    const lines = codeLines(P.character ?? 'cloud')
+    const timing = P.lines ?? [[0, 0.5], [0.5, 1.4], [1.4, 2]]
+    const states = P.states ?? []
+    const who = new Cast(P.character ?? 'cloud', 1168, 430, 88, { pop: true })
     let on = false
     let state = 'thinking'
-    const doneAt = bar(29, 2)
+    let changed = -1
     const run = timeline([
-      [bar(29), () => {
+      [P.appearAt ?? 2, () => {
         on = true
-        ghost.enter()
-        ghost.a.play('thinking')
+        who.enter()
+        who.a.play('thinking')
       }],
-      [doneAt, () => {
-        state = 'done'
-        ghost.a.play('idle')
-        ghost.a.play('done')
-      }]
+      ...states.map((s) => [s.at, () => {
+        state = s.state
+        changed = s.at
+        who.a.play('idle')
+        who.a.play(s.state)
+      }])
     ])
+    const STATUS = {
+      thinking: lang === 'zh' ? '思考中…' : 'Thinking…',
+      done: lang === 'zh' ? '完成 ✓' : 'Done ✓',
+      error: lang === 'zh' ? '出错了' : 'Something broke',
+      celebrate: lang === 'zh' ? '完成 ✓' : 'Done ✓'
+    }
     return (t, dt) => {
       run(t)
       paper()
-      // editor
       g.fillStyle = INK
       rrect(40, 236, 880, 320, 22)
       g.fill()
@@ -408,20 +309,35 @@ const SCENES = {
       })
       text('index.html', 480, 270, { size: 15, weight: 500, color: '#8f8a80', font: MONO })
       g.font = `500 18.5px ${MONO}`
-      CODE.forEach((line, i) => {
-        const from = line.from * BEAT
-        const to = line.to * BEAT
+      lines.forEach((line, i) => {
+        const [from, to] = timing[i]
         if (t < from) return
-        let s = line.text.slice(0, Math.round(line.text.length * clamp01((t - from) / (to - from))))
-        if (i === 2 && state === 'done') s = line.text.replace('thinking', 'done')
+        let s = line.slice(0, Math.round(line.length * clamp01((t - from) / (to - from))))
+        if (i === 2 && changed >= 0) s = line.replace('"thinking"', `"${state === 'celebrate' ? 'done' : state}"`)
         const y = 338 + i * 52
         text(String(i + 1), 72, y, { size: 16, weight: 500, color: '#5c5850', font: MONO })
-        paintCode(s, 102, y, i === 2 && t >= doneAt ? clamp01((t - doneAt) / 0.2) : 0)
+        paintCode(s, 102, y, i === 2 && changed >= 0 ? clamp01((t - changed) / 0.2) : 0)
         if (t < to && Math.floor(t * 3) % 2 === 0) {
           g.fillStyle = '#ffd43b'
           g.fillRect(102 + g.measureText(s).width + 2, y - 18, 10, 23)
         }
       })
+      if (P.depsAt !== undefined && t >= P.depsAt) {
+        const [s, r, a] = stamp(t, P.depsAt)
+        g.save()
+        g.translate(480, 640)
+        g.scale(s, s)
+        g.rotate(r)
+        g.globalAlpha = a
+        const label = lang === 'zh' ? '没有依赖 · 约 40 KB' : 'No dependencies · ~40 KB'
+        g.font = `600 30px ${FONT}`
+        const w = g.measureText(label).width + 56
+        g.fillStyle = '#ffd43b'
+        rrect(-w / 2, -40, w, 60, 30)
+        g.fill()
+        text(label, 0, 1, { size: 30, weight: 600 })
+        g.restore()
+      }
       // the page it lands in
       g.save()
       g.shadowColor = 'rgba(60,45,10,0.18)'
@@ -441,104 +357,167 @@ const SCENES = {
         g.fill()
       })
       if (on) {
-        ghost.a.advance(dt)
-        ghost.draw()
-        text(state === 'done' ? (lang === 'zh' ? '好了 ✓' : 'Done ✓') : lang === 'zh' ? '思考中…' : 'Thinking…', 1168, 592, { size: 22, weight: 600, color: MUTED, font: lang === 'zh' ? ZH : BRAND })
+        g.save()
+        rrect(960, 230, 416, 396, [0, 0, 22, 22])
+        g.clip()
+        who.draw(dt)
+        g.restore()
+        text(STATUS[state] ?? '', 1168, 596, { size: 24, weight: 600, color: MUTED })
       }
     }
   },
 
-  /* the music stops; a request types itself */
-  pause() {
-    const prompt = PROMPT[lang]
-    const sent = typedAt(lang, [...prompt].length) + 0.25
-    return (t) => {
-      paper()
-      say(t, { zh: '想要一个自己的？', en: 'Want one of your own?' }, 720, 285, { size: 68, appear: 0.05 })
-      const n = [...prompt].filter((_, i) => t >= typedAt(lang, i)).length
-      const s = [...prompt].slice(0, n).join('')
-      g.save()
-      g.shadowColor = 'rgba(60,45,10,0.16)'
-      g.shadowBlur = 30
-      g.shadowOffsetY = 10
-      g.fillStyle = '#fffdf8'
-      rrect(250, 410, 940, 86, 43)
-      g.fill()
-      g.restore()
-      const font = lang === 'zh' ? ZH : BRAND
-      g.font = `500 28px ${font}`
-      text(s, 296, 463, { size: 28, weight: 500, align: 'left', font })
-      if (n < [...prompt].length || Math.floor(t * 2.4) % 2 === 0) {
-        g.fillStyle = INK
-        g.fillRect(298 + g.measureText(s).width, 438, 3, 34)
-      }
-      // send button lights up when the line is complete
-      const on = clamp01((t - sent) / 0.12)
-      g.fillStyle = on ? INK : '#e3ddcf'
-      g.beginPath()
-      g.arc(1140, 453, 26 * (1 - 0.12 * Math.sin(Math.min(1, (t - sent) / 0.25) * Math.PI) * (t > sent ? 1 : 0)), 0, Math.PI * 2)
-      g.fill()
-      g.strokeStyle = on ? '#fffdf8' : '#a39d90'
-      g.lineWidth = 4
-      g.lineCap = 'round'
-      g.lineJoin = 'round'
-      g.beginPath()
-      g.moveTo(1140, 465)
-      g.lineTo(1140, 441)
-      g.moveTo(1130, 451)
-      g.lineTo(1140, 441)
-      g.lineTo(1150, 451)
-      g.stroke()
-    }
-  },
-
-  /* Toasty pops out of its toaster: DING */
-  toasty() {
-    const c = new Cast(toast, 720, 420, 150)
-    c.a.play('pop')
-    return (t, dt) => {
-      paper(TONES.toast)
-      c.a.advance(dt)
-      c.draw()
-    }
-  },
-
-  /* everyone, the name and where to find it; they fall asleep as the music ends */
-  end() {
-    const all = [...FAMILY, toast]
-    const cast = all.map((def, i) => new Cast(def, 720 + (i - 3.5) * 150, 458, 52))
+  /* "want your own?": a request types itself, then Toasty pops out of its toaster */
+  skill() {
+    const prompt = [...PROMPT[lang]]
+    const per = (P.typeTo - P.typeFrom) / prompt.length
+    const toaster = new Cast('toast', 720, 520, 150)
+    let popped = false
+    const up = P.liftAt ?? P.popAt ?? Infinity
     const run = timeline([
-      ...cast.map((c, i) => [i * 0.045, () => c.a.play('celebrate')]),
-      ...cast.map((c, i) => [bar(39) + i * 0.12, () => c.a.play('yawn')]),
-      ...cast.map((c, i) => [bar(40) + i * 0.1, () => c.a.play('sleep')])
+      [P.popAt ?? Infinity, () => {
+        popped = true
+        toaster.a.play('pop')
+      }],
+      [P.happyAt ?? Infinity, () => toaster.a.play('happy')]
+    ])
+    return (t, dt) => {
+      run(t)
+      paper(P.tone ?? PAPER)
+      const lift = easeOut((t - up) / 0.45)
+      if (P.askAt !== undefined) {
+        g.save()
+        g.globalAlpha = 1 - lift
+        say(t, { zh: '想要一个自己的？', en: 'Want one of your own?' }, 720, 300 - lift * 120, { size: 72, at: P.askAt })
+        g.restore()
+      }
+      if (P.typeFrom !== undefined && t >= P.typeFrom - 0.2) {
+        const n = prompt.filter((_, i) => t >= P.typeFrom + i * per).length
+        const s = prompt.slice(0, n).join('')
+        const y = 430 - lift * 330
+        g.save()
+        g.globalAlpha = clamp01((t - P.typeFrom + 0.2) / 0.2)
+        g.shadowColor = 'rgba(60,45,10,0.16)'
+        g.shadowBlur = 30
+        g.shadowOffsetY = 10
+        g.fillStyle = '#fffdf8'
+        rrect(250, y, 940, 86, 43)
+        g.fill()
+        g.restore()
+        g.font = `500 28px ${FONT}`
+        text(s, 296, y + 53, { size: 28, weight: 500, align: 'left' })
+        if (n < prompt.length || Math.floor(t * 2.4) % 2 === 0) {
+          g.fillStyle = INK
+          g.fillRect(298 + g.measureText(s).width, y + 28, 3, 34)
+        }
+        const on = P.sendAt !== undefined && t >= P.sendAt
+        g.fillStyle = on ? INK : '#e3ddcf'
+        g.beginPath()
+        g.arc(1140, y + 43, 26, 0, Math.PI * 2)
+        g.fill()
+        g.strokeStyle = on ? '#fffdf8' : '#a39d90'
+        g.lineWidth = 4
+        g.lineCap = 'round'
+        g.lineJoin = 'round'
+        g.beginPath()
+        g.moveTo(1140, y + 55)
+        g.lineTo(1140, y + 31)
+        g.moveTo(1130, y + 41)
+        g.lineTo(1140, y + 31)
+        g.lineTo(1150, y + 41)
+        g.stroke()
+      }
+      if (t >= up || P.typeFrom === undefined) {
+        g.save()
+        g.globalAlpha = P.typeFrom === undefined ? 1 : clamp01((t - up) / 0.25)
+        toaster.y = P.typeFrom === undefined ? 470 : 560 - 40 * lift
+        toaster.draw(dt)
+        g.restore()
+        if (popped && P.name) {
+          const [s, r, a] = stamp(t, P.popAt + 0.5)
+          if (t > P.popAt + 0.5) {
+            g.save()
+            g.translate(1110, 300)
+            g.scale(s, s)
+            g.rotate(r)
+            g.globalAlpha = a
+            nameTag(-120, -40, nameOf('toast'), lang === 'zh' ? '用 Skill 做的' : 'made with the skill')
+            g.restore()
+          }
+        }
+      }
+    }
+  },
+
+  /* the launch card: the family, the name, where to find it */
+  end() {
+    const all = [...FAMILY, ...(P.toast === false ? [] : ['toast'])]
+    const gap = all.length > 7 ? 150 : 168
+    const cast = all.map((cid, i) => new Cast(cid, 720 + (i - (all.length - 1) / 2) * gap, 470, 52, { pop: true }))
+    const enter = P.enterAt ?? 0
+    const run = timeline([
+      ...cast.map((c, i) => [enter + i * 0.07, () => {
+        c.enter()
+        c.a.play('hello')
+      }]),
+      ...(P.cheerAt ?? []).flatMap((at) => cast.map((c, i) => [at + i * 0.04, () => c.a.play('celebrate')])),
+      ...(P.jumpAt ?? []).flatMap((at) => cast.map((c, i) => [at + i * 0.03, () => {
+        c.a.flash('surprised', 0.6)
+        c.a.hop(0.9)
+      }])),
+      ...(P.sleepAt !== undefined ? cast.map((c, i) => [P.sleepAt + i * 0.1, () => c.a.play('yawn')]) : []),
+      ...(P.sleepAt !== undefined ? cast.map((c, i) => [P.sleepAt + 1.6 + i * 0.1, () => c.a.play('sleep')]) : [])
     ])
     return (t, dt) => {
       run(t)
       paper()
-      const k = easeBack(t / 0.4)
+      const [s, r, a] = stamp(t, P.titleAt ?? 0, 0.4)
       g.save()
       g.translate(720, 205)
-      g.scale(0.9 + 0.1 * k, 0.9 + 0.1 * k)
-      g.globalAlpha = clamp01(t / 0.15)
+      g.scale(s, s)
+      g.rotate(r)
+      g.globalAlpha = a
       if (lang === 'zh') {
-        g.font = `600 92px ${ZH}`
-        const a = g.measureText('活宝 ').width
-        g.font = `800 92px ${BRAND}`
-        const b = g.measureText('Livelings').width
-        text('活宝', -(a + b) / 2, 0, { size: 92, weight: 600, align: 'left' })
-        text('Livelings', -(a + b) / 2 + a, 0, { size: 92, weight: 800, align: 'left', font: BRAND })
-      } else text('Livelings', 0, 0, { size: 104, weight: 800, font: BRAND })
+        g.font = `600 100px ${ZH}`
+        const w1 = g.measureText('活宝 ').width
+        g.font = `800 100px ${BRAND}`
+        const w2 = g.measureText('Livelings').width
+        text('活宝', -(w1 + w2) / 2, 0, { size: 100, weight: 600, align: 'left', font: ZH })
+        text('Livelings', -(w1 + w2) / 2 + w1, 0, { size: 100, weight: 800, align: 'left', font: BRAND })
+      } else text('Livelings', 0, 0, { size: 112, weight: 800, font: BRAND })
       g.restore()
-      const sub = clamp01((t - 0.25) / 0.3)
-      text(lang === 'zh' ? '开源 · 免费 · 可以商用' : 'Open source · Free · OK for commercial use', 720, 268, { size: 30, weight: 600, color: MUTED, alpha: sub, font: lang === 'zh' ? ZH : BRAND })
+      if (P.launchAt !== undefined && t >= P.launchAt) {
+        const [s2, r2, a2] = stamp(t, P.launchAt, 0.35)
+        g.save()
+        g.translate(1205, 118)
+        g.scale(s2, s2)
+        g.rotate(-0.12 + r2)
+        g.globalAlpha = a2
+        const label = lang === 'zh' ? '开源发布' : 'Open source'
+        g.font = `700 40px ${FONT}`
+        const w = g.measureText(label).width + 48
+        g.strokeStyle = '#e03131'
+        g.lineWidth = 5
+        rrect(-w / 2, -42, w, 70, 12)
+        g.stroke()
+        text(label, 0, 6, { size: 40, weight: 700, color: '#e03131' })
+        g.restore()
+      }
+      const sub = clamp01((t - (P.subAt ?? 0.3)) / 0.3)
+      text(lang === 'zh' ? '开源 · 免费 · 可以商用' : 'Open source · Free · OK for commercial use', 720, 280, { size: 32, weight: 600, color: MUTED, alpha: sub })
       cast.forEach((c) => {
-        c.a.advance(dt)
-        c.draw()
+        if (t >= enter) c.draw(dt)
       })
-      const low = clamp01((t - 0.5) / 0.3)
-      text('livelings.makerjackie.com', 720, 640, { size: 40, weight: 750, alpha: low, font: BRAND })
-      text('github.com/makerjackie/livelings', 720, 688, { size: 24, weight: 600, color: MUTED, alpha: low, font: BRAND })
-      text(lang === 'zh' ? 'MakerJackie 出品' : 'by MakerJackie', 720, 760, { size: 20, weight: 600, color: '#a39d90', alpha: low, font: lang === 'zh' ? ZH : BRAND })
+      const low = clamp01((t - (P.urlAt ?? 0.6)) / 0.3)
+      const glow = P.urlFlashAt !== undefined ? Math.max(0, 1 - Math.abs(t - P.urlFlashAt - 0.3) / 0.6) : 0
+      if (glow > 0) {
+        g.fillStyle = `rgba(255, 212, 59, ${0.85 * glow})`
+        rrect(720 - 330, 600, 660, 62, 18)
+        g.fill()
+      }
+      text('livelings.makerjackie.com', 720, 646, { size: 48, weight: 800, alpha: low, font: BRAND })
+      text('github.com/makerjackie/livelings', 720, 700, { size: 26, weight: 600, color: MUTED, alpha: low, font: BRAND })
+      text('by MakerJackie', 720, 762, { size: 24, weight: 700, color: '#a39d90', alpha: low, font: BRAND })
     }
   }
 }
@@ -548,8 +527,8 @@ function paintCode(s, x, y, swap) {
   const parts = s.split(/("[^"]*"?|<\/?[\w-]+|>)/).filter(Boolean)
   let cx = x
   for (const p of parts) {
-    const color = p.startsWith('"') ? '#ffd866' : p.startsWith('<') ? '#8fd3ff' : p === '>' ? '#8fd3ff' : '#efebe1'
-    if (swap && p === '"done"') {
+    const color = p.startsWith('"') ? '#ffd866' : p.startsWith('<') || p === '>' ? '#8fd3ff' : '#efebe1'
+    if (swap && /^"(done|error)"$/.test(p)) {
       g.fillStyle = `rgba(255, 212, 59, ${0.35 * swap})`
       g.fillRect(cx - 3, y - 20, g.measureText(p).width + 6, 27)
     }

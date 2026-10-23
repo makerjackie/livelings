@@ -3,8 +3,7 @@ strong onset within 70 ms (the track is generated and breathes a little).
 
     python3 tools/beats.py public/music/scene-funk-90.mp3 beats.json
 
-Bars start on beats 1, 5, 9, ... (bar k = beat 1 + 4k), checked against the
-break at bar 30, where the band stops.
+Which beat starts bar 0 depends on the track; the edit sets it (barBeat).
 """
 import json, subprocess, sys
 import numpy as np
@@ -24,8 +23,13 @@ fps = sr / hop
 dur = len(y) / sr
 w = int(0.012 * fps)
 pool = np.array([fl[max(0, i - w):i + w + 1].max() for i in range(len(fl))])
+# coarse tempo from the autocorrelation of the onset curve (70-170 BPM), then a fine grid search around it
+ac = np.correlate(fl, fl, mode='full')[len(fl) - 1:]
+lags = np.arange(len(ac)) / fps
+m = (lags >= 60 / 170) & (lags <= 60 / 70)
+coarse = 60 / lags[m][np.argmax(ac[m])]
 best = (-1e9, 0.0, 0.0)
-for p in np.arange(0.530, 0.540, 0.00002):
+for p in np.arange(60 / (coarse + 1.5), 60 / (coarse - 1.5), 0.00002):
     for o in np.arange(0, p, 0.004):
         ii = np.round(np.arange(o, dur - 0.1, p) * fps).astype(int)
         s = pool[ii].mean()
@@ -46,4 +50,4 @@ for t in grid:
 beats = [round(float(s), 4) for s in snapped]
 json.dump({'source': src, 'bpm': round(60 / period, 3), 'period': round(float(period), 5), 'duration': round(dur, 3),
            'barBeat': 1, 'beats': beats}, open(out, 'w'), indent=0)
-print(f'{60 / period:.2f} bpm, {len(beats)} beats, bar 0 at {beats[1]:.3f}s, bar 30 at {beats[121]:.3f}s, bar 37 at {beats[149]:.3f}s')
+print(f'{60 / period:.2f} bpm, {len(beats)} beats, first beat {beats[0]:.3f}s, duration {dur:.2f}s')
