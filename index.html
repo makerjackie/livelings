@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Livelings</title>
+    <meta name="description" content="Open-source living mascots drawn entirely in code. They think while your app thinks, cheer when it is done and sulk when it fails." />
+    <meta name="theme-color" content="#f4f0e6" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/" data-link>
+        <canvas id="brand-mark" aria-hidden="true"></canvas>
+        <span><b>Livelings</b><small id="brand-tag"></small></span>
+      </a>
+      <nav class="links" aria-label="Site">
+        <a href="/" data-link id="nav-characters"></a>
+        <a href="/docs" data-link id="nav-docs"></a>
+        <button class="lang" type="button" id="lang"></button>
+      </nav>
+    </header>
+    <main id="app"></main>
+    <script type="module" src="/src/site/main.ts"></script>
+  </body>
+</html>

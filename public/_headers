@@ -1,0 +1,11 @@
+# other sites load the library as an ES module, which needs CORS
+/livelings.js
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=600
+
+/livelings-skill.zip
+  Access-Control-Allow-Origin: *
+  Content-Disposition: attachment; filename="livelings-skill.zip"
+
+/showcase/*
+  Cache-Control: public, max-age=86400

@@ -1,0 +1,11 @@
+{
+  "title": "等待，也可以**很香**",
+  "subtitle": "加载的时候，让它慢慢烤",
+  "character": "./characters/toast.js",
+  "action": "toastUp",
+  "at": 1.4,
+  "side": "right",
+  "notes": [
+    { "text": "做完了就叮地弹出来", "x": 0.5, "y": 0.14, "color": "orange", "arrow": [0.68, 0.3] }
+  ]
+}

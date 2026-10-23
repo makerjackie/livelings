@@ -1,0 +1,12 @@
+{
+  "title": "Habits can be **more fun**",
+  "subtitle": "One Inky stamp a day",
+  "character": "inky",
+  "action": "stamp",
+  "side": "right",
+  "notes": [
+    { "text": "tap, and it flies over to stamp", "x": 0.44, "y": 0.16, "color": "red", "arrow": [0.66, 0.34] },
+    { "text": "7 days in a row: a milestone", "x": 0.08, "y": 0.74, "color": "blue" }
+  ],
+  "props": [{ "shape": "star", "x": 0.9, "y": 0.22, "size": 0.035, "color": "#ffd43b" }]
+}

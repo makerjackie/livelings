@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Static site + the hosted library and skill: everything is built into dist/.
+  "name": "livelings",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    // /c/<id> and /docs are client-side routes
+    "not_found_handling": "single-page-application"
+  },
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "livelings.makerjackie.com", "custom_domain": true }]
+}

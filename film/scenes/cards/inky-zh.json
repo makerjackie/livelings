@@ -1,0 +1,13 @@
+{
+  "title": "打卡这件事，可以**好玩一点**",
+  "subtitle": "每天盖一个墨团章",
+  "character": "inky",
+  "action": "stamp",
+  "at": 1.3,
+  "side": "right",
+  "notes": [
+    { "text": "点一下，它就飞过去盖章", "x": 0.5, "y": 0.16, "color": "red", "arrow": [0.66, 0.34] },
+    { "text": "连续 7 天，解锁里程碑", "x": 0.08, "y": 0.74, "color": "blue" }
+  ],
+  "props": [{ "shape": "star", "x": 0.9, "y": 0.22, "size": 0.035, "color": "#ffd43b" }]
+}

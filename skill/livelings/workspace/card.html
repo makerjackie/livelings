@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Livelings card</title>
+    <style>
+      body { margin: 0; background: #e9e4d8; font: 13px ui-sans-serif, system-ui, -apple-system, 'PingFang SC', sans-serif; }
+      #bar { display: flex; gap: 8px; padding: 10px; }
+      #bar button { height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: #fffdf8; cursor: pointer; font: inherit; }
+      canvas { display: block; margin: 0 auto; max-width: 100%; height: auto; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.3); }
+      body.still #bar { display: none; }
+      body.still { background: transparent; }
+      body.still canvas { box-shadow: none; }
+    </style>
+  </head>
+  <body>
+    <div id="bar"><button id="png" type="button">PNG</button><button id="rec" type="button">● Record 3s</button></div>
+    <canvas id="card"></canvas>
+    <script type="module" src="./card.js"></script>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.wrangler/
+.DS_Store
+
+# built by `pnpm build` / `pnpm skill`
+public/livelings-skill.zip
+skill/livelings/workspace/livelings.js
+skill/livelings/workspace/characters/toast.js
+skill/livelings/reference/examples/
+
+# film: captured footage, renders and voice takes are rebuilt locally
+film/footage/
+film/renders/
+film/public/footage
+film/public/voice/
+film/scenes/shots/
+
+# launch drafts and notes stay local
+launch/

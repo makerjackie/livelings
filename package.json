@@ -1,0 +1,32 @@
+{
+  "name": "livelings",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Livelings (活宝): open-source mascots that are alive. Drop one into your site or app in three lines, or make your own with the Livelings skill.",
+  "license": "MIT",
+  "author": "MakerJackie",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && vite build --config vite.lib.config.ts && node scripts/build-skill.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "check": "tsc --noEmit",
+    "skill": "vite build --config vite.lib.config.ts && node scripts/build-skill.mjs",
+    "deploy": "pnpm build && wrangler deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4",
+    "wrangler": "4.90.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/makerjackie/livelings"
+  },
+  "homepage": "https://livelings.makerjackie.com"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "livelings-launch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "beats": "python3 tools/beats.py public/music/scene-funk-90.mp3 beats.json",
+    "capture": "node tools/capture.mjs",
+    "studio": "remotion studio src/index.ts",
+    "render:zh": "remotion render src/index.ts Film-zh renders/livelings-launch-zh-raw.mp4 --crf=12 --concurrency=4",
+    "render:en": "remotion render src/index.ts Film-en renders/livelings-launch-en-raw.mp4 --crf=12 --concurrency=4",
+    "finish": "bash tools/finish.sh"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.380",
+    "@remotion/google-fonts": "4.0.380",
+    "playwright-core": "1.56.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.380"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "^4.0.380",
+    "@remotion/renderer": "^4.0.380",
+    "@types/react": "19.1.0",
+    "typescript": "5.9.3"
+  }
+}
