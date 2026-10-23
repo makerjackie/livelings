@@ -137,6 +137,30 @@ fixed), `r.time`, `r.actor`.
 - `straight: true`: straight edges (blocks, paper). `thicken: false` for hard bodies.
 - `effects: { opacity: {...} }`: the body becomes see-through by that spring.
 
+## Sounds
+
+A character can have its own sounds, synthesized (no files). Keys are action
+ids, plus `tap`, `land`, `grab`, `release` and `hello`; missing ones use the
+shared set. Times are seconds from the moment the action starts, so a sound
+can land where the action lands. The page plays them only when sound is on
+(`<live-ling sound>`), after the first click.
+
+```js
+import { chime, clack, thud, whoosh, patter, squeak, splash, blip, note } from '../livelings.js'
+
+sounds: {
+  tap: (s) => clack(s, 900),                                   // a wooden knock
+  stamp: (s) => thud(s, 0.5, 0.28, 130),                        // lands at 0.5 s, like the stamp
+  done: (s) => chime(s, [72, 76, 79, 84]),                      // notes are MIDI numbers
+  boo: (s) => s.tone({ f: 260, to: 430, dur: 0.6, gain: 0.16, type: 'sawtooth', vibrato: [5, 18] }),
+  rain: (s) => patter(s, 40, 2.3, 4200, 0.05, 0.3)              // many tiny clicks
+}
+```
+
+`s.tone({ f, to, dur, type, gain, at, vibrato, filter })` and `s.noise({ dur,
+gain, at, type, f, to, q })` are the two primitives; the helpers are built on
+them. Keep sounds short and quiet: they play while people use the product.
+
 ## Reacting to people
 
 ```js

@@ -1,4 +1,5 @@
 import { UNIVERSAL, at, doneBadge, errorBadge, every, sparkles, variant } from '../engine/behaviors'
+import { blip, chime, note, patter, whoosh } from '../engine/sound'
 import { TAU, clamp } from '../engine/math'
 import { scallop, transform } from '../engine/shapes'
 import type { Actor } from '../engine/actor'
@@ -76,6 +77,43 @@ function sun(r: RenderCtx, t: number, alpha: number) {
 
 export const cloud: CharacterDef = {
   id: 'cloud',
+  // a puff of air, rain on a window, a far-off rumble
+  sounds: {
+    hello: (s) => {
+      whoosh(s, 600, 1600, 0.25, 0.1)
+      blip(s, note(79), note(84), 0.12, 0.08, 0.05)
+    },
+    tap: (s) => {
+      s.noise({ dur: 0.14, gain: 0.14, type: 'lowpass', f: 900, to: 400 })
+      blip(s, 520, 380, 0.07, 0.06)
+    },
+    rain: (s) => {
+      patter(s, 42, 2.3, 4200, 0.05, 0.3, 7)
+      s.noise({ dur: 2.4, gain: 0.03, at: 0.3, type: 'highpass', f: 5000, attack: 0.5 })
+    },
+    thunder: (s) => {
+      s.noise({ dur: 0.08, gain: 0.22, at: 0.45, type: 'highpass', f: 2500 })
+      s.noise({ dur: 1.6, gain: 0.38, at: 0.47, type: 'lowpass', f: 220, to: 70, q: 0.7, attack: 0.05 })
+      patter(s, 20, 0.9, 4200, 0.05, 0.5, 3)
+    },
+    poof: (s) => {
+      whoosh(s, 300, 2500, 0.4, 0.14, 0.25)
+      blip(s, 600, 900, 0.1, 0.08, 1.4)
+    },
+    drift: (s) => whoosh(s, 700, 300, 1.6, 0.06, 0.2),
+    sunbathe: (s) => chime(s, [72, 76, 79], 0.12, 0.07, 0.2, 1.1),
+    tidy: (s) => {
+      for (let i = 0; i < 4; i++) s.noise({ dur: 0.16, gain: 0.06, at: i * 0.3, type: 'bandpass', f: 2500, to: 1200, q: 1.5 })
+    },
+    done: (s) => {
+      whoosh(s, 600, 1400, 0.2, 0.06)
+      chime(s, [76, 79, 84], 0.08, 0.1, 0.05)
+    },
+    error: (s) => {
+      patter(s, 14, 1.2, 4000, 0.05, 0.2, 2)
+      s.tone({ f: note(67), to: note(62), dur: 0.5, gain: 0.07, type: 'triangle' })
+    }
+  },
   name: label('Puff', '小云'),
   material: label('Cloud', '云'),
   tagline: label('A small cloud that tidies up after you.', '一朵帮你收拾房间的小云。'),

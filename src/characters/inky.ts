@@ -1,4 +1,5 @@
 import { UNIVERSAL, at, errorBadge, every, sparkles, variant } from '../engine/behaviors'
+import { blip, chime, note, patter, splash, thud } from '../engine/sound'
 import { clamp, withAlpha } from '../engine/math'
 import { circle, squircle } from '../engine/shapes'
 import type { CharacterDef, RenderCtx } from '../engine/types'
@@ -49,6 +50,37 @@ function writingLine(r: RenderCtx, t: number, alpha: number) {
 
 export const inky: CharacterDef = {
   id: 'inky',
+  // a wet bloop, the thump of a stamp
+  sounds: {
+    hello: (s) => blip(s, 300, 650, 0.12, 0.16),
+    tap: (s) => {
+      blip(s, 560, 230, 0.1, 0.18)
+      s.noise({ dur: 0.03, gain: 0.05, type: 'highpass', f: 3000 })
+    },
+    stamp: (s) => {
+      blip(s, 380, 620, 0.12, 0.08, 0.2)
+      thud(s, 0.5, 0.28, 130)
+      s.noise({ dur: 0.04, gain: 0.12, at: 0.5, type: 'bandpass', f: 1800, q: 2 })
+    },
+    splat: (s) => {
+      s.noise({ dur: 0.18, gain: 0.2, at: 0.5, type: 'bandpass', f: 1200, to: 400, q: 1.2 })
+      blip(s, 420, 120, 0.16, 0.12, 0.5)
+      blip(s, 300, 600, 0.12, 0.1, 1.9)
+    },
+    count: (s) => [0.15, 0.75, 1.35].forEach((at, i) => blip(s, note(72 + i * 4), note(74 + i * 4), 0.1, 0.12, at)),
+    star: (s) => chime(s, [84, 88, 91], 0.06, 0.08, 0.55),
+    splash: (s) => {
+      patter(s, 8, 0.7, 1500, 0.08, 0, 4)
+      splash(s, 0, 0.1)
+    },
+    write: (s) => {
+      for (let i = 0; i < 5; i++) s.noise({ dur: 0.12, gain: 0.13, at: i * 0.35, type: 'bandpass', f: 3200, q: 2 })
+    },
+    done: (s) => {
+      thud(s, 0.5, 0.24, 130)
+      chime(s, [79, 84], 0.08, 0.1, 0.55)
+    }
+  },
   name: label('Inky', '小墨'),
   material: label('Ink', '墨'),
   tagline: label('A living drop of ink that stamps your day.', '一滴活的墨，帮你给每一天盖章。'),

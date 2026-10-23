@@ -44,7 +44,7 @@ export function renderSkill(cleanups: Array<() => void>): HTMLElement {
 
   // Toasty goes through its day on its own; poke it and it answers
   const host = h('div', { class: 'skill-stage' })
-  const m = createMascot(host, { character: toast, shadow: true, zoom: 0.7, fidget: true })
+  const m = createMascot(host, { character: toast, shadow: true, zoom: 0.7, fidget: true, sound: 'touch' })
   const day = ['toastUp', 'pop', 'thinking', 'burn', 'idle', 'pop']
   let k = 0
   const step = window.setInterval(() => {

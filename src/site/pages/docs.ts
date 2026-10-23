@@ -61,7 +61,8 @@ export function renderDocs(app: HTMLElement): () => void {
             ['`palette`', L('palette id', '配色 id'), L('Force a palette instead of the seed choice.', '指定配色，不用种子挑。')],
             ['`accessory`', L('accessory id or `none`', '配饰 id 或 `none`'), L('Force an accessory, or none.', '指定配饰，或不要配饰。')],
             ['`mood`', L('expression name', '表情名'), L('A resting face for idle (e.g. `sleepy`).', '待机时的默认表情（比如 `sleepy`）。')],
-            ['`interactive`', '`false`', L('Disable poking, dragging and petting.', '关闭戳、拖、摸的互动。')]
+            ['`interactive`', '`false`', L('Disable poking, dragging and petting.', '关闭戳、拖、摸的互动。')],
+            ['`sound`', L('present', '加上即可'), L('Each character makes its own synthesized sounds when you play with it (after the first click on the page). Off by default.', '每个角色发出自己的合成音效（页面第一次点击之后才会响）。默认关闭。')]
           ]
         ),
         p('Size it with CSS (`width`/`height`); the canvas fills the element. Call `element.play(id)` for reactions.', '用 CSS 设置宽高，画布会填满元素。反应动作用 `element.play(id)` 调用。')

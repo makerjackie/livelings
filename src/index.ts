@@ -36,6 +36,7 @@ export {
 } from './engine/behaviors'
 export { TAU, clamp, lerp, mixHex, withAlpha, createRng, Spring } from './engine/math'
 export { drawText, drawGlyph } from './engine/text'
+export { sounds, listenTo, Synth, DEFAULT_SOUNDS, note, blip, chime, clack, thud, whoosh, patter, squeak, splash, type SoundRecipe } from './engine/sound'
 export { label, physics, ACCESSORIES, pickAccessories } from './characters/kit'
 
 /**
@@ -55,11 +56,12 @@ export const defineCharacter = (def: CharacterDef): CharacterDef => def
  * `<live-ling character="inky" state="thinking" seed="ada">`
  *
  * Attributes: character, state, seed, palette, accessory ("none" for none),
- * mood, interactive ("false" to disable). Call `.play(id)` on the element for
- * one-shots.
+ * mood, interactive ("false" to disable), sound (each character's own
+ * synthesized sounds, after the first click on the page; off unless present).
+ * Call `.play(id)` on the element for one-shots.
  */
 export class LivelingElement extends HTMLElement {
-  static observedAttributes = ['character', 'state', 'seed', 'palette', 'accessory', 'mood']
+  static observedAttributes = ['character', 'state', 'seed', 'palette', 'accessory', 'mood', 'sound']
   mascot: Mascot | null = null
 
   connectedCallback() {
@@ -102,7 +104,8 @@ export class LivelingElement extends HTMLElement {
       palette: this.getAttribute('palette') ?? undefined,
       accessory: accessory === 'none' ? null : (accessory ?? undefined),
       state: this.getAttribute('state') ?? undefined,
-      interactive: this.getAttribute('interactive') !== 'false'
+      interactive: this.getAttribute('interactive') !== 'false',
+      sound: this.hasAttribute('sound') && this.getAttribute('sound') !== 'false'
     })
     const mood = this.getAttribute('mood')
     if (mood) this.mascot.setMood(mood as never)

@@ -1,5 +1,6 @@
 import { FAMILY } from '../../characters'
 import { Actor } from '../../engine/actor'
+import { sounds } from '../../engine/sound'
 import { TONES, UPCOMING, stampFor } from '../data'
 import type { CharacterDef } from '../../engine/types'
 import { fly, setOutgoing, takeReturning, type Slot } from '../fx'
@@ -90,7 +91,7 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
     const coming = back?.id === def.id ? back : null
     const first = coming && plainActor(coming.actors[0]) ? coming.actors[0] : new Actor(def, { fidget: true })
     first.fidget = true
-    const stage = new Stage(canvas, [first], { layout: cardLayout, interactive: false })
+    const stage = new Stage(canvas, [first], { layout: cardLayout, interactive: false, overlay: {} })
     live.push(stage)
     everyone.push(stage)
     byId.set(def.id, stage)
@@ -104,9 +105,12 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
     const open = () => {
       if (leaving || stage.paused) return
       leaving = true
+      sounds.play(null, 'split')
       setOutgoing({ id: def.id, slot: slotOf(card, stage, tone), actor: stage.actors[0] })
       card.classList.add('chosen')
       root.classList.add('leaving')
+      // the page fades out; so do the characters on the overlay, except the one leaving with its card
+      for (const s of live) if (s !== stage) s.every((dt) => (s.alpha = Math.max(0, s.alpha - dt / 0.18)))
       window.setTimeout(() => go(`/c/${def.id}`), 190)
     }
     card.addEventListener('click', open)
@@ -115,12 +119,13 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
       e.preventDefault()
       open()
     })
-    let greeted = 0
+    let greeted = -Infinity
     card.addEventListener('pointerenter', () => {
       if (stage.paused || stage.actors[0].state !== 'idle' || performance.now() - greeted < 5000) return
       greeted = performance.now()
       touched()
       stage.actors[0].play('hello')
+      sounds.play(def, 'hello')
       glanceAt(stage)
     })
     if (coming) {
@@ -178,6 +183,7 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
       const lead = byId.get(s.who)
       if (!lead || lead.paused || lead.actors[0].state !== 'idle') continue
       lead.actors[0].play(s.act)
+      sounds.play(lead.actors[0].def, s.act, { level: 0.7 })
       glanceAt(lead)
       for (const [who, act, delay] of s.then) {
         const other = byId.get(who)
@@ -204,6 +210,7 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
       if (loop) activeLoop = activeLoop === k ? -1 : k
       const play = loop && activeLoop === -1 ? 'idle' : id
       live.forEach((s, i) => window.setTimeout(() => s.actors[0].play(play), i * 110))
+      sounds.play(list[k % list.length], play)
       together.select(activeLoop >= 0 ? activeLoop : null)
     }
   })
@@ -242,6 +249,7 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
     const drop = h('i', { class: 'ink-drop', style: `left:${e.pageX}px;top:${e.pageY}px` })
     document.body.append(drop)
     window.setTimeout(() => drop.remove(), 900)
+    sounds.play(null, 'drop')
     touched()
     const until = performance.now() + 1500
     everyone.forEach((s) => {

@@ -28,6 +28,13 @@ function restOf(def: CharacterDef): Shape {
   return s
 }
 
+export type ActorEvent =
+  | { type: 'play'; id: string }
+  | { type: 'tap'; taps: number }
+  | { type: 'land'; strength: number }
+  | { type: 'grab' }
+  | { type: 'release' }
+
 export interface ActorOptions {
   /** any string: picks a palette and accessory, and seeds every random choice */
   seed?: string
@@ -133,6 +140,7 @@ export class Actor {
   petting = false
   /** last hard landing, for splashes */
   landing: { time: number; strength: number } | null = null
+  private listeners: Array<(e: ActorEvent) => void> = []
 
   particles: Particle[] = []
   overlays: Overlay[] = []
@@ -193,6 +201,18 @@ export class Actor {
     if (this.behaviors[start].kind === 'once') this.play(start)
   }
 
+  /** Hear what happens to this actor (actions starting, taps, landings): for sounds. */
+  on(fn: (e: ActorEvent) => void): () => void {
+    this.listeners.push(fn)
+    return () => {
+      this.listeners = this.listeners.filter((f) => f !== fn)
+    }
+  }
+
+  private announce(e: ActorEvent) {
+    for (const fn of this.listeners) fn(e)
+  }
+
   /* ------------------------------------------------------------- control */
 
   /** Play an action by id. Loops become the new state; one-shots play once and hand back. */
@@ -201,6 +221,7 @@ export class Actor {
     if (!b) return false
     if (b.kind === 'loop') {
       if (id === this.loopId && !this.onceId) return true
+      this.announce({ type: 'play', id })
       this.fadeOverlay(this.behaviors[this.loopId])
       if (this.onceId) this.fadeOverlay(this.behaviors[this.onceId])
       this.onceId = null
@@ -210,6 +231,7 @@ export class Actor {
       b.enter?.(this, false)
       this.addOverlay(b)
     } else {
+      this.announce({ type: 'play', id })
       if (this.onceId) this.fadeOverlay(this.behaviors[this.onceId])
       this.onceId = id
       this.onceT = 0
@@ -577,6 +599,7 @@ export class Actor {
   tap(): number {
     this.taps = [...this.taps.filter((t) => this.time - t < 1.3), this.time]
     const n = this.taps.length
+    this.announce({ type: 'tap', taps: n })
     if (this.def.react?.tap?.(this, n)) return n
     this.poke(1)
     this.bristle(0.7)
@@ -614,6 +637,7 @@ export class Actor {
     }
     const anchor = { x: this.base[best].x + this.off[best].x + c.x, y: this.base[best].y + this.off[best].y + c.y }
     this.grabbed = { index: best, anchor, target: anchor }
+    this.announce({ type: 'grab' })
   }
 
   drag(p: Vec) {
@@ -635,6 +659,7 @@ export class Actor {
    */
   release(velocity?: Vec) {
     this.grabbed = null
+    this.announce({ type: 'release' })
     if (!velocity) return
     const speed = Math.hypot(velocity.x, velocity.y)
     if (speed < 5) return
@@ -742,7 +767,10 @@ export class Actor {
       if (this.height >= 0) {
         this.height = 0
         const impact = Math.min(this.vy / p.hopPower, 1.4)
-        if (impact > 0.35) this.landing = { time: this.time, strength: impact }
+        if (impact > 0.35) {
+          this.landing = { time: this.time, strength: impact }
+          this.announce({ type: 'land', strength: impact })
+        }
         this.squash.velocity += 10 * impact * p.squashiness
         this.poke(0.6 * impact)
         if (p.bounce > 0 && this.vy > 1.2) this.vy = -this.vy * p.bounce

@@ -1,6 +1,7 @@
 import { Actor } from '../engine/actor'
 import { onFrame } from '../engine/mascot'
 import { renderActor } from '../engine/render'
+import { overlayAt } from './overlay'
 import type { Vec } from '../engine/math'
 
 export interface Placement {
@@ -31,6 +32,12 @@ export interface StageOptions {
   cursor?(p: Vec, index: number): string | null
   /** a canvas point under the pointer, or null when it leaves */
   onHover?(p: Vec | null): void
+  /**
+   * Draw the characters on the page overlay, above everything, so they can
+   * leave their box. `margin` keeps them within that many pixels of this
+   * canvas (default: anywhere on the page). Tile clips are ignored.
+   */
+  overlay?: { margin?: number }
 }
 
 /** Several actors sharing one canvas: the hero, the state matrix, variant strips. */
@@ -41,6 +48,10 @@ export class Stage {
   paused = false
   /** solid fill behind everything (for video capture, where transparency turns black) */
   background: string | null = null
+  /** draw the characters on this canvas too, with their clips (for PNG and video export) */
+  inline = false
+  /** opacity of the characters on the overlay (a page fading out) */
+  alpha = 1
   private g: CanvasRenderingContext2D
   private w = 1
   private h = 1
@@ -157,6 +168,7 @@ export class Stage {
     }
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     this.opts.paint?.(g, this.w, this.h, this.places)
+    if (this.opts.overlay && !this.inline) return this.drawOnOverlay(this.opts.overlay.margin)
     this.actors.forEach((a, i) => {
       const p = this.places[i]
       if (!p || p.R <= 1) return
@@ -169,6 +181,28 @@ export class Stage {
       renderActor(g, a, { cx: p.cx, cy: p.cy, R: p.R, shadow: this.opts.shadow })
       if (p.clip) g.restore()
     })
+  }
+
+  private drawOnOverlay(margin = Infinity) {
+    const r = this.canvas.getBoundingClientRect()
+    if (r.width < 1 || this.alpha <= 0) return
+    const o = overlayAt(r)
+    o.save()
+    o.globalAlpha = this.alpha
+    if (Number.isFinite(margin)) {
+      o.beginPath()
+      o.rect(-margin, -margin, this.w + margin * 2, this.h + margin * 2)
+      o.clip()
+    }
+    this.actors.forEach((a, i) => {
+      const p = this.places[i]
+      if (!p || p.R <= 1) return
+      // a tile that has slid out of view (the camera zoomed in) stays out of view
+      const b = p.clip
+      if (b && (b.x > this.w || b.y > this.h || b.x + b.w < 0 || b.y + b.h < 0)) return
+      renderActor(o, a, { cx: p.cx, cy: p.cy, R: p.R, shadow: this.opts.shadow })
+    })
+    o.restore()
   }
 
   private local(e: PointerEvent): Vec {

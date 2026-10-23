@@ -1,5 +1,6 @@
 import { cloud, inky } from '../characters'
 import { createMascot } from '../engine/mascot'
+import { sounds } from '../engine/sound'
 import { ORIGIN_URLS } from './data'
 import { lang, t } from './i18n'
 import { h } from './util'
@@ -103,6 +104,7 @@ function miniProgram(cleanups: Array<() => void>) {
     r.addEventListener('click', () => {
       pausedUntil = performance.now() + 8000
       tick(i)
+      sounds.play(inky, done.has(i) ? (done.size === habits.length ? 'celebrate' : 'stamp') : 'sad')
     })
   )
   const step = () => {

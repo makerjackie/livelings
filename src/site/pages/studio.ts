@@ -1,4 +1,5 @@
 import { FAMILY } from '../../characters'
+import { listenTo, sounds } from '../../engine/sound'
 import { Actor } from '../../engine/actor'
 import { drawText } from '../../engine/text'
 import { EMOTIONS, FIDGETS, UNIVERSAL_EVENTS, UNIVERSAL_STATES } from '../../engine/behaviors'
@@ -83,6 +84,7 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
   let camTarget = 0
   let hover = -1
   let shownCode = ''
+  let unhear: Array<() => void> = []
   let boxes: Box[] = []
   const waits: number[] = []
 
@@ -121,6 +123,7 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
       return boxes.map((b) => placeIn(b, w, hh))
     },
     followPointer: true,
+    overlay: { margin: 56 },
     paint(g, w, hh) {
       boxes.forEach((b, i) => {
         if (b.x > w || b.y > hh || b.x + b.w < 0 || b.y + b.h < 0) return
@@ -149,6 +152,7 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
     }
   })
   cleanups.push(() => stage.destroy())
+  cleanups.push(() => unhear.forEach((f) => f()))
 
   /** Each tile keeps performing its action: loops run on, one-shots come round again. */
   const playTile = (i: number) => {
@@ -189,6 +193,9 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
     const probe = makeActor(def, look)
     actions = unique([...def.signature, ...GRID_FILL]).filter((id) => probe.behaviors[id]).slice(0, TILES)
     stage.setActors(actions.map((_, i) => (i === 0 && reuse && isPlain(look) ? reuse : makeActor(def, look))))
+    // sixteen tiles replaying their actions would be a din: they only make sounds when touched
+    unhear.forEach((f) => f())
+    unhear = stage.actors.map((a) => listenTo(a, { play: false }))
   }
 
   /** The grid bursts out of one character: out of a card on the index, or out of the middle. */
@@ -224,6 +231,10 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
   let filmStrip: Strip | null = null
 
   function zoomTo(k: number) {
+    if (focus === null) {
+      sounds.play(null, 'zoom')
+      sounds.play(def, actions[k], { level: 0.8 })
+    }
     focus = k
     camTile = k
     camTarget = 1
@@ -238,6 +249,7 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
       onPick(i) {
         actions[k] = list[i]
         playTile(k)
+        sounds.play(def, list[i])
         filmStrip?.select(i)
         renderCode()
       }
@@ -344,10 +356,13 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
 
   const pngBtn = h('button', { class: 'btn small', type: 'button' }, t('png'))
   pngBtn.addEventListener('click', () => {
+    // exports need the characters on the grid canvas itself, not on the page overlay
     stage.background = '#f4f0e6'
+    stage.inline = true
     stage.render()
     canvas.toBlob((b) => b && download(b, `livelings-${def.id}.png`))
     stage.background = null
+    stage.inline = false
   })
   const recBtn = h('button', { class: 'btn small rec', type: 'button', onclick: () => record() }, '● ' + t('record'))
 
@@ -436,11 +451,13 @@ export function renderStudio(app: HTMLElement, firstId: string, go: (href: strin
     if (!type) return
     recording = true
     stage.background = '#f4f0e6'
+    stage.inline = true
     const rec = new MediaRecorder(canvas.captureStream(60), { mimeType: type, videoBitsPerSecond: 12_000_000 })
     const chunks: Blob[] = []
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
     rec.onstop = () => {
       stage.background = null
+      stage.inline = false
       recording = false
       recBtn.textContent = '● ' + t('record')
       recBtn.classList.remove('on')

@@ -1,4 +1,5 @@
 import { at, every, sparkles, variant, zzz } from '../engine/behaviors'
+import { chime } from '../engine/sound'
 import { TAU, clamp, withAlpha, type Vec } from '../engine/math'
 import { circle, resample } from '../engine/shapes'
 import type { Actor } from '../engine/actor'
@@ -80,6 +81,24 @@ function phase(a: Actor, i: number) {
 
 export const moon: CharacterDef = {
   id: 'moon',
+  // little bells, brighter as it fills
+  sounds: {
+    hello: (s) => chime(s, [88, 95], 0.06, 0.07, 0, 0.6),
+    tap: (s) => chime(s, [91], 0, 0.08, 0, 0.6),
+    wax: (s) => {
+      chime(s, [72, 76, 79, 83, 86], 0.32, 0.06, 0.1, 0.8)
+      chime(s, [84, 91, 96], 0.05, 0.09, 1.95, 1.2)
+    },
+    wane: (s) => chime(s, [91, 86, 83, 79, 76], 0.3, 0.06, 0.1, 0.8),
+    twinkle: (s) => chime(s, [91, 96, 100], 0.08, 0.08, 0.8, 0.7),
+    eclipse: (s) => {
+      s.tone({ f: 110, dur: 1.4, gain: 0.08, at: 0.2, attack: 0.4 })
+      s.tone({ f: 165, dur: 1.2, gain: 0.04, at: 0.3, attack: 0.4 })
+      chime(s, [84], 0, 0.08, 1.5, 0.9)
+    },
+    swing: (s) => [76, 79, 76, 72].forEach((n, i) => chime(s, [n], 0, 0.06, i * 0.6, 0.6)),
+    done: (s) => chime(s, [79, 84, 88, 91], 0.07, 0.09)
+  },
   name: label('Luna', '月月'),
   material: label('Moonlight', '月光'),
   tagline: label('Fills up as you go, from a sliver to full.', '你越往前，它就越圆。'),

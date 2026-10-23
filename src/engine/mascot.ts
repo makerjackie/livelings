@@ -3,6 +3,7 @@ import { renderActor } from './render'
 import type { ExpressionName } from './eyes'
 import type { CharacterDef } from './types'
 import type { Vec } from './math'
+import { listenTo, sounds } from './sound'
 
 /* ----------------------------------------------------- shared ticker */
 
@@ -40,6 +41,12 @@ export interface MascotOptions extends ActorOptions {
   zoom?: number
   /** called after an action is played through the pointer (tap, pet) */
   onInteract?(kind: 'tap' | 'pet' | 'drag'): void
+  /**
+   * Make its sounds (synthesized, after the first click on the page):
+   * `true` for taps, drags and one-shot actions, `'touch'` for taps and drags
+   * only. Off by default.
+   */
+  sound?: boolean | 'touch'
 }
 
 /**
@@ -85,6 +92,10 @@ export class Mascot {
     this.io.observe(this.canvas)
     this.resize()
     if (opts.interactive !== false) this.bindPointer()
+    if (opts.sound) {
+      sounds.enabled = true
+      this.cleanup.push(listenTo(this.actor, { play: opts.sound === 'touch' ? false : undefined }))
+    }
     this.stop = onFrame(this)
   }
 

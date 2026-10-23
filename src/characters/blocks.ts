@@ -1,4 +1,5 @@
 import { at, every, sparkles, thoughtDots, variant, zzz } from '../engine/behaviors'
+import { chime, clack, thud } from '../engine/sound'
 import { TAU, mixHex, type Vec } from '../engine/math'
 import { polygon } from '../engine/shapes'
 import { drawText } from '../engine/text'
@@ -175,6 +176,40 @@ function pull(a: Actor) {
 
 export const blocks: CharacterDef = {
   id: 'blocks',
+  // wooden blocks knocking together, and the clatter when they fall
+  sounds: {
+    hello: (s) => {
+      clack(s, 820, 0, 0.14)
+      clack(s, 980, 0.1, 0.14)
+    },
+    tap: (s) => {
+      s.noise({ dur: 0.22, gain: 0.06, type: 'bandpass', f: 1800, q: 2 })
+      clack(s, 900, 0.22, 0.2)
+    },
+    jenga: (s) => {
+      s.noise({ dur: 0.3, gain: 0.07, type: 'bandpass', f: 1800, q: 2 })
+      clack(s, 900, 0.3, 0.2)
+    },
+    stack: (s) => {
+      clack(s, 760, 0.5, 0.18)
+      clack(s, 900, 1.0, 0.18)
+    },
+    topple: (s) => {
+      ;[0.4, 0.52, 0.62, 0.76, 0.9].forEach((at, i) => clack(s, 1050 - i * 110, at, 0.18 - i * 0.02))
+      thud(s, 0.95, 0.2, 110)
+    },
+    shuffle: (s) => {
+      for (let i = 0; i < 4; i++) clack(s, 800 + (i % 2) * 220, i * 0.3, 0.1)
+    },
+    done: (s) => {
+      clack(s, 900, 0, 0.16)
+      chime(s, [79, 84, 88], 0.07, 0.09, 0.45)
+    },
+    error: (s) => {
+      ;[1.9, 2.0, 2.12].forEach((at, i) => clack(s, 900 - i * 120, at, 0.16))
+      thud(s, 2.2, 0.18, 110)
+    }
+  },
   name: label('Stacky', '垒垒'),
   material: label('Toy blocks', '积木'),
   tagline: label('Builds itself up, block by block.', '一块一块，把自己垒起来。'),

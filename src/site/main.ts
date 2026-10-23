@@ -1,6 +1,7 @@
 import './styles.css'
 import { cloud } from '../characters'
 import { createMascot } from '../engine/mascot'
+import { sounds } from '../engine/sound'
 import { lang, setLang, t } from './i18n'
 import { named } from '../engine/library'
 import { takeReturning, warmUp } from './fx'
@@ -15,8 +16,36 @@ let page: Page | null = null
 const brand = createMascot(document.getElementById('brand-mark') as HTMLCanvasElement, {
   character: cloud,
   shadow: false,
-  zoom: 1.45,
+  zoom: 1.12,
   fidget: true
+})
+
+/* every character makes its own sounds when you play with it; one button mutes them all */
+const SOUND_KEY = 'ms-sound'
+const soundBtn = document.getElementById('sound')!
+const SPEAKER = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9h3l5-4v14l-5-4H4z" fill="currentColor"/>'
+function renderSound() {
+  soundBtn.innerHTML = SPEAKER + (sounds.muted ? '<path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' : '<path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>')
+  const label = t(sounds.muted ? 'soundOff' : 'soundOn')
+  soundBtn.setAttribute('aria-label', label)
+  soundBtn.setAttribute('title', label)
+  soundBtn.setAttribute('aria-pressed', String(!sounds.muted))
+}
+try {
+  sounds.muted = localStorage.getItem(SOUND_KEY) === 'off'
+} catch {
+  /* storage can be unavailable */
+}
+sounds.enabled = true
+soundBtn.addEventListener('click', () => {
+  sounds.muted = !sounds.muted
+  try {
+    localStorage.setItem(SOUND_KEY, sounds.muted ? 'off' : 'on')
+  } catch {
+    /* ignore */
+  }
+  renderSound()
+  if (!sounds.muted) sounds.play(cloud, 'hello')
 })
 
 function chrome(kind: Page['kind']) {
@@ -24,6 +53,7 @@ function chrome(kind: Page['kind']) {
   document.getElementById('brand-tag')!.textContent = t('tagline')
   document.querySelector('.brand b')!.textContent = lang === 'zh' ? '活宝 Livelings' : 'Livelings'
   document.getElementById('lang')!.textContent = lang === 'zh' ? 'EN' : '中文'
+  renderSound()
   const links: Record<string, [string, Page['kind'][]]> = { 'nav-characters': [t('navCharacters'), ['home', 'studio']], 'nav-docs': [t('navDocs'), ['docs']] }
   for (const [id, [label, kinds]] of Object.entries(links)) {
     const a = document.getElementById(id)!

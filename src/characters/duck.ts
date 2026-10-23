@@ -1,4 +1,5 @@
 import { at, every, floatGlyph, sparkles, thoughtDots, variant, zzz } from '../engine/behaviors'
+import { blip, splash as splashSound, squeak as squeakSound } from '../engine/sound'
 import { TAU, clamp, mixHex, withAlpha } from '../engine/math'
 import { discs, transform } from '../engine/shapes'
 import type { Actor } from '../engine/actor'
@@ -26,16 +27,20 @@ const WATER = 0.56
 function water(r: RenderCtx) {
   const { g, R, cx, cy, time } = r
   const y0 = cy + R * WATER
-  const left = cx - R * 3
-  const right = cx + R * 3
+  const left = cx - R * 1.9
+  const right = cx + R * 1.9
   g.save()
+  // a little tub, so the water stays with the duck when it is drawn outside its card
+  g.beginPath()
+  g.roundRect(cx - R * 1.75, y0 - R * 0.25, R * 3.5, R * (1.1 - WATER + 0.25), R * 0.3)
+  g.clip()
   g.beginPath()
   g.moveTo(left, y0)
   for (let x = left; x <= right; x += R * 0.1) {
     g.lineTo(x, y0 + Math.sin((x - cx) / R * 3.2 + time * 2.6) * R * 0.035)
   }
-  g.lineTo(right, cy + R * 1.4)
-  g.lineTo(left, cy + R * 1.4)
+  g.lineTo(right, cy + R * 1.3)
+  g.lineTo(left, cy + R * 1.3)
   g.closePath()
   g.fillStyle = withAlpha('#74c0fc', 0.42)
   g.fill()
@@ -148,6 +153,34 @@ function splash(a: Actor, n = 8) {
 
 export const duck: CharacterDef = {
   id: 'duck',
+  // the squeeze of a rubber duck, bath water
+  sounds: {
+    hello: (s) => squeakSound(s, 0, 1250, 0.1),
+    tap: (s) => squeakSound(s, 0, 1150, 0.13),
+    squeak: (s) => squeakSound(s, 0.45, 1100, 0.16),
+    quack: (s) => {
+      for (const at of [0.1, 0.55]) {
+        s.tone({ f: 560, to: 420, dur: 0.16, gain: 0.28, at, type: 'sawtooth', filter: { type: 'bandpass', f: 1000, q: 3 } })
+        s.tone({ f: 1100, to: 850, dur: 0.12, gain: 0.12, at, type: 'sawtooth', filter: { type: 'bandpass', f: 2400, q: 4 } })
+      }
+    },
+    flip: (s) => {
+      squeakSound(s, 0.2, 1300, 0.08)
+      splashSound(s, 1.2, 0.16)
+    },
+    paddle: (s) => {
+      for (let i = 0; i < 4; i++) splashSound(s, 0.2 + i * 0.6, 0.11)
+    },
+    dive: (s) => {
+      for (let i = 0; i < 6; i++) blip(s, 500 + i * 120, 900 + i * 140, 0.06, 0.05, 0.4 + i * 0.08)
+      splashSound(s, 1.3, 0.16)
+    },
+    done: (s) => {
+      squeakSound(s, 0, 1300, 0.1)
+      splashSound(s, 0.3, 0.12)
+    },
+    error: (s) => s.tone({ f: 380, to: 300, dur: 0.3, gain: 0.24, type: 'sawtooth', filter: { type: 'bandpass', f: 800, q: 3 } })
+  },
   name: label('Quack', '嘎嘎'),
   material: label('Rubber duck', '橡皮鸭'),
   tagline: label('Squeaks when squeezed. Listens while you debug.', '一捏就吱，你讲 bug 它认真听。'),

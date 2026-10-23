@@ -26,6 +26,9 @@ a page in three lines, or make your own with the Livelings skill.
 <live-ling character="cloud" state="thinking" style="width:160px;height:160px"></live-ling>
 ```
 
+Add `sound` to the tag and each character makes its own sounds when people
+play with it (synthesized, no files; off by default).
+
 Then drive it from your app: `el.setAttribute('state', 'working')` for states,
 `el.play('done')` for one-shots. Every character understands the same
 vocabulary, so you can swap characters without changing code:
@@ -83,7 +86,7 @@ was made that way (`src/examples/toast.ts`). Characters you make are yours.
   most 1/120 s, so motion follows the display's real refresh rate. Same seed,
   same frame times, same frames, so video can be exported frame by frame.
 - **No dependencies.** The engine is plain TypeScript on a 2D canvas; the
-  bundle is about 40 KB gzipped.
+  bundle is about 45 KB gzipped.
 
 ## Develop
 

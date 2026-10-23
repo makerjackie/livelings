@@ -32,6 +32,8 @@ const S = {
   tagline: { en: 'Open-source mascots that are alive', zh: '会动、会回应的开源吉祥物' },
   navCharacters: { en: 'Characters', zh: '图鉴' },
   navDocs: { en: 'Docs', zh: '文档' },
+  soundOn: { en: 'Sound on', zh: '声音已开' },
+  soundOff: { en: 'Sound off', zh: '声音已关' },
 
   homeTitle: { en: 'Mascots that are alive.', zh: '会动、会回应的吉祥物。' },
   homeSub: {

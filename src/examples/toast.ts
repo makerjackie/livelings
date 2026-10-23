@@ -1,6 +1,6 @@
 // Toasty: a slice of bread that lives in a toaster and pops out when it is done.
 // Made with the Livelings skill, as an example of a character file.
-import { defineCharacter, label, physics, shapes, at, every, sparkles, steam, floatGlyph, variant, mixHex, withAlpha, TAU } from '../index'
+import { defineCharacter, label, physics, shapes, at, every, sparkles, steam, floatGlyph, variant, mixHex, withAlpha, TAU, chime, clack } from '../index'
 import type { Actor, RenderCtx } from '../index'
 
 /** A slice of sandwich bread: two round shoulders on a square body. */
@@ -79,6 +79,23 @@ function pop(a: Actor, height = 1.5) {
 
 export default defineCharacter({
   id: 'toast',
+  // a spring going boing, the bell of a toaster, butter sizzling
+  sounds: {
+    tap: (s) => s.tone({ f: 260, to: 520, dur: 0.16, gain: 0.12, type: 'triangle', vibrato: [16, 30] }),
+    pop: (s) => {
+      s.tone({ f: 220, to: 700, dur: 0.22, gain: 0.14, type: 'triangle', vibrato: [18, 40] })
+      chime(s, [96], 0, 0.13, 0.08, 1.2)
+    },
+    toastUp: (s) => {
+      for (let i = 0; i < 6; i++) clack(s, 2400, i * 0.25, 0.05)
+      chime(s, [96], 0, 0.11, 1.6, 1.0)
+    },
+    burn: (s) => s.noise({ dur: 1.5, gain: 0.06, type: 'highpass', f: 5000, attack: 0.3 }),
+    done: (s) => {
+      s.tone({ f: 220, to: 700, dur: 0.22, gain: 0.12, type: 'triangle', vibrato: [18, 40] })
+      chime(s, [96, 100], 0.1, 0.11, 0.1, 1.0)
+    }
+  },
   name: label('Toasty', '吐吐'),
   material: label('Toast', '吐司'),
   tagline: label('Pops out of the toaster when it is done.', '事情办完，它就从吐司机里弹出来。'),

@@ -1,4 +1,5 @@
 import { at, every, sparkles, sweat, thoughtDots, variant } from '../engine/behaviors'
+import { chime, clack, note, patter } from '../engine/sound'
 import { TAU, clamp } from '../engine/math'
 import { squircle, transform } from '../engine/shapes'
 import type { Actor } from '../engine/actor'
@@ -124,6 +125,43 @@ function score(r: RenderCtx) {
 
 export const dice: CharacterDef = {
   id: 'dice',
+  // a die rattling in a cup, then the clack when it settles
+  sounds: {
+    hello: (s) => {
+      clack(s, 1100, 0, 0.14)
+      clack(s, 1300, 0.09, 0.12)
+    },
+    tap: (s) => {
+      patter(s, 12, 0.75, 2600, 0.11, 0, 5)
+      clack(s, 1150, 0.86, 0.22)
+    },
+    roll: (s) => {
+      patter(s, 12, 0.75, 2600, 0.11, 0, 6)
+      clack(s, 1150, 0.86, 0.22)
+    },
+    lucky: (s) => {
+      patter(s, 12, 0.8, 2600, 0.11, 0, 8)
+      clack(s, 1150, 0.88, 0.22)
+      chime(s, [72, 76, 79, 84], 0.07, 0.1, 0.95)
+    },
+    snake: (s) => {
+      patter(s, 12, 0.8, 2600, 0.11, 0, 9)
+      clack(s, 1000, 0.88, 0.22)
+      s.tone({ f: note(67), to: note(63), dur: 0.5, gain: 0.08, at: 0.95, type: 'triangle' })
+    },
+    tumble: (s) => {
+      for (let i = 0; i < 5; i++) clack(s, 1200 - i * 80, i * 0.45, 0.16)
+      clack(s, 900, 1.8, 0.22)
+    },
+    count: (s) => {
+      for (let i = 0; i < 6; i++) clack(s, 900 + i * 90, 0.2 + i * 0.42, 0.14)
+    },
+    done: (s) => {
+      patter(s, 10, 0.7, 2600, 0.1, 0, 2)
+      clack(s, 1150, 0.8, 0.2)
+      chime(s, [79, 84, 88], 0.07, 0.09, 0.9)
+    }
+  },
   name: label('Pips', '点点'),
   material: label('Dice', '骰子'),
   tagline: label('Every face is a mood. Tap it to roll.', '每一面都是一种心情，点一下就掷。'),

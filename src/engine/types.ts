@@ -2,6 +2,7 @@ import type { Actor } from './actor'
 import type { Eyes } from './eyes'
 import type { Vec } from './math'
 import type { Shape } from './shapes'
+import type { SoundRecipe } from './sound'
 
 export interface Text {
   en: string
@@ -97,6 +98,11 @@ export interface Accessory {
 
 export interface CharacterDef {
   id: string
+  /**
+   * Its own sounds, synthesized (see engine/sound.ts): keyed by action id, or
+   * `tap`, `land`, `grab`, `release`, `hello`. Missing ones use the shared set.
+   */
+  sounds?: Record<string, SoundRecipe>
   name: Text
   material: Text
   tagline: Text

@@ -256,7 +256,7 @@ const POSTERS = {
     })
     const a = pose(C.cloud, 'thinking', 1.2)
     draw(a, x + w - 170 * u, y + h - 210 * u, 110 * u)
-    text(lang === 'zh' ? '没有依赖 · 约 40 KB' : 'No dependencies · ~40 KB', tall ? W / 2 : SIDE.cx, tall ? y + h + 80 * u : bottom + 90 * u, { size: 34 * u, weight: 600, color: MUTED })
+    text(lang === 'zh' ? '没有依赖 · 约 45 KB' : 'No dependencies · ~45 KB', tall ? W / 2 : SIDE.cx, tall ? y + h + 80 * u : bottom + 90 * u, { size: 34 * u, weight: 600, color: MUTED })
     footer()
   },
 

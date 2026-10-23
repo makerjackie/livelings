@@ -1,4 +1,5 @@
 import { at, every, floatGlyph, sparkles, thoughtDots, variant, zzz } from '../engine/behaviors'
+import { blip, chime, whoosh } from '../engine/sound'
 import { clamp, type Vec } from '../engine/math'
 import { resample } from '../engine/shapes'
 import type { Actor } from '../engine/actor'
@@ -48,6 +49,29 @@ function boo(a: Actor) {
 
 export const ghost: CharacterDef = {
   id: 'ghost',
+  // a breathy wooo, air going the wrong way
+  sounds: {
+    hello: (s) => s.tone({ f: 380, to: 520, dur: 0.45, gain: 0.08, vibrato: [6, 14] }),
+    tap: (s) => s.tone({ f: 620, to: 430, dur: 0.3, gain: 0.08, vibrato: [7, 10] }),
+    boo: (s) => {
+      whoosh(s, 300, 1800, 0.3, 0.12, 0.4)
+      s.tone({ f: 260, to: 430, dur: 0.6, gain: 0.16, at: 0.45, type: 'sawtooth', filter: { type: 'lowpass', f: 1100 }, vibrato: [5, 18] })
+    },
+    vanish: (s) => {
+      whoosh(s, 2400, 400, 0.9, 0.1)
+      blip(s, 400, 800, 0.14, 0.08, 2.1)
+    },
+    phase: (s) => {
+      whoosh(s, 500, 300, 1.0, 0.07, 0.3)
+      blip(s, 500, 900, 0.1, 0.08, 1.4)
+    },
+    haunt: (s) => s.tone({ f: 440, to: 540, dur: 1.4, gain: 0.07, at: 0.6, vibrato: [5, 22] }),
+    peekaboo: (s) => {
+      blip(s, 500, 1000, 0.12, 0.12, 1.2)
+      chime(s, [84, 88], 0.08, 0.08, 1.35)
+    },
+    done: (s) => chime(s, [79, 83, 86], 0.09, 0.08, 0, 0.8)
+  },
   name: label('Boo', '飘飘'),
   material: label('Ghost', '幽灵'),
   tagline: label('Fades when you leave. Jumps out when you come back.', '你一走它就隐身，你一回来它就吓你。'),

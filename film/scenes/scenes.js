@@ -329,7 +329,7 @@ const SCENES = {
         g.scale(s, s)
         g.rotate(r)
         g.globalAlpha = a
-        const label = lang === 'zh' ? '没有依赖 · 约 40 KB' : 'No dependencies · ~40 KB'
+        const label = lang === 'zh' ? '没有依赖 · 约 45 KB' : 'No dependencies · ~45 KB'
         g.font = `600 30px ${FONT}`
         const w = g.measureText(label).width + 56
         g.fillStyle = '#ffd43b'
