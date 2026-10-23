@@ -130,6 +130,7 @@ function wideHead(key, extra) {
 
 const COPY = {
   cover: { zh: '会动、会回应的\n**开源吉祥物**', en: 'Open-source mascots\nthat are **alive**' },
+  cover2: { zh: '三行代码，\n给网页养一只**活宝**', en: 'Three lines of code,\na mascot that is **alive**' },
   home: { zh: '它们一直\n**盯着你的鼠标**', en: 'They **watch\nyour cursor**' },
   grid: { zh: '点开一个，\n**变出 16 个**', en: 'Open one,\nget **sixteen**' },
   tricks: { zh: '每一个，都有\n**自己的绝活**', en: 'Each one has\n**its own tricks**' },
@@ -142,16 +143,17 @@ const POSTERS = {
   async cover() {
     paper()
     const big = tall ? 108 * u : 96 * u
-    const bottom = headline(COPY.cover[lang], tall ? 250 * u : 190 * u, big)
+    const bottom = headline(COPY[q.get('copy') ?? 'cover'][lang], tall ? 250 * u : 190 * u, big)
     const R = tall ? 92 * u : 70 * u
     const cast = FAMILY.map((def, i) => pose(def, ['hello', 'hello', 'happy', 'hello', 'done', 'stack', 'twinkle'][i], [0.45, 0.7, 0.6, 0.6, 0.5, 1.2, 0.9][i]))
     if (tall) {
       const rows = [cast.slice(0, 4), cast.slice(4)]
-      rows.forEach((row, r) => row.forEach((a, i) => draw(a, W / 2 + (i - (row.length - 1) / 2) * 225 * u, bottom + (330 + r * 340) * u, R * 0.95)))
+      const phone = H / W > 1.6 // 9:16 covers have room for bigger characters
+      rows.forEach((row, r) => row.forEach((a, i) => draw(a, W / 2 + (i - (row.length - 1) / 2) * (phone ? 245 : 225) * u, bottom + (phone ? 480 + r * 460 : 330 + r * 340) * u, R * (phone ? 1.2 : 0.95))))
     } else cast.forEach((a, i) => draw(a, W / 2 + (i - 3) * 230 * u, bottom + 260 * u, R))
     const name = lang === 'zh' ? '活宝 Livelings' : 'Livelings'
-    text(name, W / 2, H - (tall ? 150 : 110) * u, { size: 56 * u, weight: lang === 'zh' ? 600 : 800, font: lang === 'zh' ? ZH : BRAND })
-    text('MakerJackie', W / 2, H - (tall ? 95 : 60) * u, { size: 26 * u, weight: 600, color: MUTED, font: BRAND })
+    text(name, W / 2, H - (tall ? (H / W > 1.6 ? 230 : 150) : 110) * u, { size: 56 * u, weight: lang === 'zh' ? 600 : 800, font: lang === 'zh' ? ZH : BRAND })
+    text('MakerJackie', W / 2, H - (tall ? (H / W > 1.6 ? 170 : 95) : 60) * u, { size: 26 * u, weight: 600, color: MUTED, font: BRAND })
   },
 
   async home() {

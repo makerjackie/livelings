@@ -206,8 +206,8 @@ export const Film: React.FC<{ edit: EditId; lang: Lang }> = ({ edit, lang }) => 
         </Sequence>
       ) : null}
       {e.sounds.map((x, i) => (
-        <Sequence key={`s${i}`} from={Math.max(0, f(x.at))} durationInFrames={FPS * 3} name={x.src}>
-          <Audio src={staticFile(`sfx/${x.src}.wav`)} volume={x.volume ?? 0.6} />
+        <Sequence key={`s${i}`} from={Math.max(0, f(x.at))} durationInFrames={FPS * 4} name={x.src}>
+          <Audio src={staticFile(`sfx/${x.src}.wav`)} volume={x.volume ?? 0.6} startFrom={x.trim ? f(x.trim) : undefined} />
         </Sequence>
       ))}
     </AbsoluteFill>

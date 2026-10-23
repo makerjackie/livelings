@@ -49,6 +49,9 @@ const rendered = await page.evaluate(async () => {
       sum += d[i] * d[i]
     }
     const n = Math.min(d.length, last + Math.round(RATE * 0.05))
+    // every file peaks at the same level; the edit sets how loud each one is
+    const norm = peak > 0 ? 0.7 / peak : 1
+    for (let i = 0; i < n; i++) d[i] *= norm
     // 16-bit PCM WAV
     const bytes = new DataView(new ArrayBuffer(44 + n * 2))
     const str = (o, s) => [...s].forEach((c, i) => bytes.setUint8(o + i, c.charCodeAt(0)))
@@ -60,7 +63,7 @@ const rendered = await page.evaluate(async () => {
     let bin = ''
     const u8 = new Uint8Array(bytes.buffer)
     for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000))
-    results.push({ file: job.file, seconds: n / RATE, peak, rms: Math.sqrt(sum / d.length), wav: btoa(bin) })
+    results.push({ file: job.file, seconds: n / RATE, peak, rms: Math.sqrt(sum / d.length) * norm, wav: btoa(bin) })
   }
   return results
 })

@@ -92,6 +92,11 @@ export function renderHome(app: HTMLElement, go: (href: string) => void, opts: I
     const first = coming && plainActor(coming.actors[0]) ? coming.actors[0] : new Actor(def, { fidget: true })
     first.fidget = true
     const stage = new Stage(canvas, [first], { layout: cardLayout, interactive: false, overlay: {} })
+    // the character is drawn above the page, so it fades in with its card as the cards stamp in
+    const born = performance.now()
+    stage.every(() => {
+      if (performance.now() - born < 1500 && !leaving) stage.alpha = Number(getComputedStyle(card).opacity)
+    })
     live.push(stage)
     everyone.push(stage)
     byId.set(def.id, stage)

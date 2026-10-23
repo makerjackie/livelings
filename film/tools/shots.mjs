@@ -58,31 +58,36 @@ export function plan({ edit, lang, beats, vo }) {
   if (edit === 'short') {
     const bar = (k, b = 0) => beats[4 * k + b] ?? beats.at(-1) + (4 * k + b - beats.length + 1) * (beats[1] - beats[0])
     const END = bar(20) + 0.5
-    // home → a card splits into sixteen → zoom in, pick moves
+    // home → straight to the card that splits into sixteen → zoom in, pick moves, play
     const home = site('home', `${SITE}/`, 0, bar(7), {
       actions: [
-        { at: 0.25, type: 'move', from: [1400, 790], to: [1050, 560], dur: 0.9, ease: 'out' },
-        { at: bar(1), type: 'move', ...card(cloud), dur: 0.7 },
-        { at: bar(1, 2), type: 'move', ...card(ghost), dur: 1.0, arc: 0.05 },
-        { at: bar(2), type: 'move', to: [650, 104], dur: 0.6 },
-        { at: bar(2, 2), type: 'click' },
-        { at: bar(3), type: 'move', ...card(cloud), dur: 0.9 },
-        { at: bar(4) - 0.19, type: 'click' },
-        { at: bar(5), type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.45 },
-        { at: bar(5, 1), type: 'click' },
-        { at: bar(5, 3) - 0.1, type: 'move', ...strip(zh ? '打雷' : 'Thunder'), dur: 0.35 },
-        { at: bar(6), type: 'click' },
-        { at: bar(6, 1), type: 'move', ...strip(zh ? '晒太阳' : 'Sunbathe'), dur: 0.35 },
-        { at: bar(6, 2), type: 'click' },
-        { at: bar(6, 3), type: 'move', toSel: '.grid-canvas', at2: [0.8, 0.3], dur: 0.6 }
+        { at: 0.25, type: 'move', from: [1400, 790], to: [1050, 560], dur: 0.6, ease: 'out' },
+        { at: bar(0, 2), type: 'move', ...card(ghost), dur: 0.6 },
+        { at: bar(1), type: 'move', ...card(cloud), dur: 0.9, arc: 0.05 },
+        { at: bar(2) - 0.19, type: 'click' },
+        { at: bar(3), type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.45 },
+        { at: bar(3, 1), type: 'click' },
+        { at: bar(3, 3) - 0.1, type: 'move', ...strip(zh ? '打雷' : 'Thunder'), dur: 0.35 },
+        { at: bar(4), type: 'click' },
+        { at: bar(4, 1), type: 'move', ...strip(zh ? '晒太阳' : 'Sunbathe'), dur: 0.35 },
+        { at: bar(4, 2), type: 'click' },
+        { at: bar(4, 3), type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.42], dur: 0.4 },
+        { at: bar(5), type: 'click' },
+        { at: bar(5, 1), type: 'drag', toSel: '.grid-canvas', at2: [0.8, 0.36], dur: 0.5 },
+        { at: bar(5, 2) + 0.05, type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.45], dur: 0.15 },
+        ...[0, 1, 2, 3, 4, 5].map((k) => ({ at: bar(6) + k * 0.13, type: 'move', toSel: '.grid-canvas', at2: [k % 2 ? 0.54 : 0.46, 0.46], dur: 0.12, ease: 'linear', arc: 0 })),
+        { at: bar(6, 3), type: 'move', toSel: '.grid-canvas', at2: [0.85, 0.3], dur: 0.6 }
       ]
     })
     shots.push(home)
-    marks.inkDrop = bar(2, 2)
-    marks.cardClick = bar(4) - 0.19
-    marks.split = bar(4)
-    marks.zoom = bar(5, 1)
-    marks.picks = [bar(6), bar(6, 2)]
+    marks.hello = bar(1) + 0.9
+    marks.cardClick = bar(2) - 0.19
+    marks.split = bar(2)
+    marks.zoom = bar(3, 1)
+    marks.picks = [bar(4), bar(4, 2)]
+    marks.poke = bar(5)
+    marks.release = bar(5, 1) + 0.5
+    marks.tickle = bar(6)
 
     // tricks: one every two beats, then everyone
     const T = bar(7)
@@ -127,30 +132,42 @@ export function plan({ edit, lang, beats, vo }) {
     return { shots, marks, duration: END }
   }
 
-  // long: narrated. Narration starts on bar 1 of the music.
-  const V = beats[4]
+  // long: narrated. A cold open on the split, then the narration from bar 2 of the music.
+  const V = beats[8]
   const F = (phrase, from) => V + vo.at(phrase, from)
   const bar = (k, b = 0) => beats[4 * k + b]
   const END = beats.at(-1) + 1.2
   marks.voice = V
 
+  shots.push(site('teaser', `${SITE}/`, 0, V, {
+    actions: [
+      { at: 0.05, type: 'move', from: [1000, 640], ...card(cloud), dur: 0.35, ease: 'out' },
+      { at: bar(0, 2) - 0.19, type: 'click' },
+      { at: bar(1, 1), type: 'move', toSel: '.grid-canvas', at2: [0.6, 0.5], dur: 1.2 }
+    ]
+  }))
+  marks.teaserClick = bar(0, 2) - 0.19
+  marks.teaserSplit = bar(0, 2)
+
   const homeEnd = F('每个活宝') - 0.3
-  shots.push(site('home', `${SITE}/`, 0, homeEnd, {
+  // the home shot starts with the narration; its pointer times are from that start
+  const at0 = (x) => x - V
+  shots.push(site('home', `${SITE}/`, V, homeEnd, {
     actions: [
       { at: 0.3, type: 'move', from: [1400, 790], to: [1050, 560], dur: 0.9, ease: 'out' },
-      { at: F('你的鼠标'), type: 'move', ...card(cloud), dur: 0.7 },
-      { at: F('你的鼠标') + 1.0, type: 'move', ...card(ghost), dur: 1.1, arc: 0.05 },
-      { at: F('点一下') - 0.2, type: 'move', to: [650, 104], dur: 0.7 },
-      { at: F('吓一跳'), type: 'click' },
-      { at: F('吓一跳') + 0.45, type: 'move', ...card(cloud), dur: 0.8 },
-      { at: F('点开小云') + 0.37, type: 'click' },
-      { at: F('每一个演') + 0.2, type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.6 },
-      { at: F('放大任意'), type: 'click' },
-      { at: F('放大任意') + 0.55, type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.42], dur: 0.4 },
-      { at: F('戳它'), type: 'click' },
-      { at: F('拖它'), type: 'drag', toSel: '.grid-canvas', at2: [0.78, 0.36], dur: 0.5 },
-      { at: F('拖它') + 0.52, type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.45], dur: 0.12 },
-      ...[0, 1, 2, 3, 4, 5].map((k) => ({ at: F('挠它') + 0.05 + k * 0.13, type: 'move', toSel: '.grid-canvas', at2: [k % 2 ? 0.54 : 0.46, 0.46], dur: 0.12, ease: 'linear', arc: 0 }))
+      { at: at0(F('你的鼠标')), type: 'move', ...card(cloud), dur: 0.7 },
+      { at: at0(F('你的鼠标') + 1.0), type: 'move', ...card(ghost), dur: 1.1, arc: 0.05 },
+      { at: at0(F('点一下') - 0.2), type: 'move', to: [650, 104], dur: 0.7 },
+      { at: at0(F('吓一跳')), type: 'click' },
+      { at: at0(F('吓一跳') + 0.45), type: 'move', ...card(cloud), dur: 0.8 },
+      { at: at0(F('点开小云') + 0.37), type: 'click' },
+      { at: at0(F('每一个演') + 0.2), type: 'move', toSel: '.grid-canvas', at2: [0.13, 0.14], dur: 0.6 },
+      { at: at0(F('放大任意')), type: 'click' },
+      { at: at0(F('放大任意') + 0.55), type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.42], dur: 0.4 },
+      { at: at0(F('戳它')), type: 'click' },
+      { at: at0(F('拖它')), type: 'drag', toSel: '.grid-canvas', at2: [0.78, 0.36], dur: 0.5 },
+      { at: at0(F('拖它') + 0.52), type: 'move', toSel: '.grid-canvas', at2: [0.5, 0.45], dur: 0.12 },
+      ...[0, 1, 2, 3, 4, 5].map((k) => ({ at: at0(F('挠它') + 0.05 + k * 0.13), type: 'move', toSel: '.grid-canvas', at2: [k % 2 ? 0.54 : 0.46, 0.46], dur: 0.12, ease: 'linear', arc: 0 }))
     ]
   }))
   marks.inkDrop = F('吓一跳')
@@ -159,6 +176,8 @@ export function plan({ edit, lang, beats, vo }) {
   marks.zoom = F('放大任意')
   marks.poke = F('戳它')
   marks.drag = F('拖它') + 0.5
+  marks.hello = F('你的鼠标') + 0.7
+  marks.tickle = F('挠它')
 
   const T = homeEnd
   const tricksEnd = F('做产品') - 0.25

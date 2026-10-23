@@ -14,7 +14,11 @@ const langs = process.argv[2] ? [process.argv[2]] : ['zh', 'en']
 const JOBS = {
   zh: [
     ...['cover', 'home', 'grid', 'tricks', 'code', 'skill', 'end'].map((p, i) => ({ p, w: 1080, h: 1440, file: `xhs/0${i + 1}.jpg` })),
-    { p: 'cover', w: 1920, h: 1080, file: 'video/cover-zh-16x9.jpg' }
+    { p: 'cover', w: 1920, h: 1080, file: 'video/cover-zh-16x9.jpg' },
+    { p: 'cover', w: 1080, h: 1920, file: 'video/cover-zh-9x16.jpg' },
+    { p: 'cover', copy: 'cover2', w: 1920, h: 1080, file: 'video/cover-long-zh-16x9.jpg' },
+    { p: 'cover', copy: 'cover2', w: 1080, h: 1920, file: 'video/cover-long-zh-9x16.jpg' },
+    { p: 'cover', copy: 'cover2', w: 1080, h: 1440, file: 'video/cover-long-zh-3x4.jpg' }
   ],
   en: [
     ...['cover', 'home', 'tricks', 'code', 'skill'].map((p, i) => ({ p, w: 1270, h: 760, file: `ph/0${i + 1}.jpg` })),
@@ -29,7 +33,7 @@ for (const lang of langs) {
     const page = await browser.newPage({ viewport: { width: job.w, height: job.h }, deviceScaleFactor: 1 })
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
-    await page.goto(`http://localhost:5290/posters.html?p=${job.p}&lang=${lang}&w=${job.w}&h=${job.h}`)
+    await page.goto(`http://localhost:5290/posters.html?p=${job.p}&lang=${lang}&w=${job.w}&h=${job.h}${job.copy ? `&copy=${job.copy}` : ''}`)
     await page.waitForFunction(() => document.title === 'ready', null, { timeout: 15000 })
     const file = resolve(out, job.file)
     mkdirSync(dirname(file), { recursive: true })
